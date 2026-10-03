@@ -130,6 +130,8 @@ log.info("outside")              # carries neither
 | `console_level` | `None` | Console level, defaulting to `level`. |
 | `console_stream` | `None` | Console stream, for example `sys.stderr`. Defaults to `sys.stdout`. |
 | `use_queue` | `False` | Write records on a background thread, so slow handlers do not block your code. See below. |
+| `redact_keys` | `None` | Field names to mask in every output, for example `DEFAULT_REDACT_KEYS`. See below. |
+| `redact_patterns` | `None` | Regular expressions whose matches are masked in the message text. |
 | `use_emoji` | `True` | Show a level emoji in the verbose console layout. Set `False` for terminals that render emoji badly. |
 | `mode` | `None` | Console layout: `"verbose"` (coloured, with source location and context) or `"compact"` (`[LEVEL] message`). Falls back to `LOG_FORMAT`, then `"verbose"`. |
 | `use_json` | `None` | Write JSON lines to the console instead. Needs the `json` extra. Falls back to `LOG_FORMAT`. |
@@ -158,6 +160,30 @@ Things worth knowing:
   logger also has handlers and you want records there too.
 - Asking for JSON output without `python-json-logger` installed raises an `ImportError` with an
   install hint.
+
+### Redacting secrets
+
+Pass `redact_keys` to mask the value of any field whose name contains one of the given words, and
+`redact_patterns` to mask text inside the message. Both apply to every handler, including JSON and
+syslog, and are off unless you ask for them.
+
+```python
+from pylogkit import DEFAULT_REDACT_KEYS, setup_logging
+
+logger = setup_logging(
+    "app",
+    redact_keys=DEFAULT_REDACT_KEYS,          # password, token, authorization, ...
+    redact_patterns=[r"Bearer \S+"],          # secrets that appear inside message text
+)
+logger.info("calling the API with Bearer abc123", extra={"api_token": "abc123"})
+# message: calling the API with ***    api_token field: ***
+```
+
+- Field names match case-insensitively by substring, so `token` also masks `access_token`.
+- Fields from `extra=`, `ContextualLoggerAdapter` and the global context are covered, including
+  nested dictionaries and lists. The objects you pass in are not modified.
+- Tracebacks are not searched, so keep secrets out of exception messages.
+- The same filter is available as `RedactionFilter` for handlers you attach yourself.
 
 ### Non-blocking logging
 

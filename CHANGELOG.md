@@ -47,6 +47,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `setup_logging(use_queue=True)` hands records to a background thread through
   a queue, so slow handlers do not block the caller, with `shutdown_logging()`
   to flush and stop it. It also runs at interpreter exit (#23).
+- `setup_logging(redact_keys=..., redact_patterns=...)` masks secrets in extra
+  and context fields and in message text for every handler, and
+  `RedactionFilter` and `DEFAULT_REDACT_KEYS` are exported. Redaction is off
+  by default (#24).
 
 ### Changed
 
