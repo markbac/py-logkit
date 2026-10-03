@@ -374,14 +374,42 @@ def setup_syslog_logger(name: str = "myapp",
     return logger
 
 def log_duration(logger: logging.Logger, level: str = "info"):
+    """Return a decorator that logs how long the decorated function takes.
+
+    The duration is measured with :func:`time.perf_counter`, a monotonic clock,
+    and is logged even when the function raises (the exception is re-raised
+    unchanged).
+
+    Args:
+        logger: Logger, or adapter, used for the message.
+        level: Level name for the message, for example ``"debug"``. It is
+            checked when the decorator is created, not on the first call.
+
+    Returns:
+        A decorator for functions.
+
+    Raises:
+        ValueError: If ``level`` is not a known logging level name.
+    """
+    numeric_level = logging.getLevelName(level.upper())
+    if not isinstance(numeric_level, int):
+        raise ValueError(f"Unknown logging level: {level!r}")
+
     def decorator(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            start = time.time()
-            result = func(*args, **kwargs)
-            duration = time.time() - start
-            getattr(logger, level)(f"{func.__name__} took {duration:.4f} seconds")
-            return result
+            start = time.perf_counter()
+            outcome = "took"
+            try:
+                return func(*args, **kwargs)
+            except BaseException:
+                outcome = "failed after"
+                raise
+            finally:
+                duration = time.perf_counter() - start
+                logger.log(
+                    numeric_level, "%s %s %.4f seconds", func.__name__, outcome, duration
+                )
         return wrapper
     return decorator
 

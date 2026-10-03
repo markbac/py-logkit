@@ -14,6 +14,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Requesting JSON output (`use_json=True` or `to_json_file=True`) without
   python-json-logger installed now raises `ImportError` with an install hint
   instead of silently doing nothing (#6).
+- `log_duration()` validates `level` when the decorator is created and raises
+  `ValueError` for unknown level names, instead of failing with
+  `AttributeError` on the first call (#9).
 
 ### Fixed
 
@@ -42,3 +45,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   later), falling back to `pythonjsonlogger.jsonlogger` for 2.x. Importing
   `pylogkit` no longer triggers a `DeprecationWarning` with current releases
   (#8).
+- `log_duration()` now logs the duration even when the decorated function
+  raises (as `... failed after N seconds`) and measures with the monotonic
+  `time.perf_counter()` instead of `time.time()` (#9).
