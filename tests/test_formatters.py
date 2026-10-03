@@ -57,3 +57,18 @@ def test_file_log_contains_context_and_message(tmp_path):
 def test_file_format_constant_includes_source_location():
     """The file layout records where each message was logged."""
     assert "%(filename)s:%(lineno)d" in FILE_FORMAT
+
+
+def test_file_log_has_no_ansi_escape_codes(tmp_path):
+    """colorlog appends a reset code unless colour is disabled for files."""
+    path = tmp_path / "app.log"
+    logger = setup_logging(
+        "fmt-no-ansi", to_console=False, to_file=True, file_path=str(path)
+    )
+
+    logger.info("hello")
+    logger.error("boom")
+    for handler in logger.handlers:
+        handler.flush()
+
+    assert "\x1b" not in path.read_text()
