@@ -30,15 +30,26 @@ import sys
 import threading
 import time
 import warnings
+from collections.abc import Callable, Iterable, Iterator, Sized
 from functools import cache, wraps
 from logging.handlers import RotatingFileHandler, SysLogHandler, TimedRotatingFileHandler
-from typing import IO, TYPE_CHECKING
+from typing import IO, TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
+    from collections.abc import Mapping, MutableMapping
     from typing import TypeAlias
 
     # The helpers work with a plain logger and with a ContextualLoggerAdapter.
     LoggerLike: TypeAlias = "logging.Logger | logging.LoggerAdapter[logging.Logger]"
+
+    _AdapterBase: TypeAlias = "logging.LoggerAdapter[logging.Logger]"
+else:
+    # ``LoggerAdapter`` is only subscriptable at runtime from Python 3.11.
+    _AdapterBase = logging.LoggerAdapter
+
+P = ParamSpec("P")
+R = TypeVar("R")
+T = TypeVar("T")
 
 # 🎨 Colour config
 COLOUR_TIMESTAMP = "bold_purple"
@@ -81,7 +92,9 @@ try:  # python-json-logger 3.1 and later
     from pythonjsonlogger.json import JsonFormatter
 except ImportError:
     try:  # python-json-logger 2.x, where the class lives in ``jsonlogger``
-        from pythonjsonlogger.jsonlogger import JsonFormatter
+        from pythonjsonlogger.jsonlogger import (  # type: ignore[attr-defined,unused-ignore]
+            JsonFormatter,
+        )
     except ImportError:
         JsonFormatter = None  # type: ignore[assignment,misc,unused-ignore]
 
@@ -93,12 +106,12 @@ except ImportError:
 _log_context = threading.local()
 
 
-def set_log_context(**kwargs):
+def set_log_context(**kwargs: Any) -> None:
     """Replace the global log context of the current thread with ``kwargs``."""
     _log_context.data = kwargs
 
 
-def clear_log_context():
+def clear_log_context() -> None:
     """Remove all fields from the global log context of the current thread."""
     _log_context.data = {}
 
@@ -113,7 +126,7 @@ def _hostname() -> str:
     return socket.gethostname()
 
 
-def get_log_context():
+def get_log_context() -> dict[str, Any]:
     """Return a copy of the active context, with defaults filled in.
 
     Defaults are ``"-"`` for ``user_id``, ``session_id`` and ``request_id``,
@@ -132,26 +145,22 @@ def get_log_context():
     return context
 
 
-class SmartFieldFormatter(colorlog.ColoredFormatter):
+class SmartFieldFormatter(colorlog.ColoredFormatter):  # type: ignore[misc,unused-ignore]
     """Colour formatter that builds a compact ``%(context)s`` field.
 
     Only context values that are set (neither empty nor ``"-"``) are shown, as
     ``[key=value]``, so records without context do not carry placeholder text.
     """
 
-    def format(self, record):
+    def format(self, record: logging.LogRecord) -> str:
         """Format ``record`` after adding the ``%(context)s`` field to it."""
         for key in ["user_id", "session_id", "request_id", "hostname", "env", "pid"]:
             if not hasattr(record, key):
                 setattr(record, key, "")
 
         field_map = {
-            "user_id": record.user_id,
-            "session_id": record.session_id,
-            "request_id": record.request_id,
-            "hostname": record.hostname,
-            "env": record.env,
-            "pid": record.pid,
+            key: getattr(record, key)
+            for key in ("user_id", "session_id", "request_id", "hostname", "env", "pid")
         }
 
         dynamic_fields = []
@@ -161,14 +170,14 @@ class SmartFieldFormatter(colorlog.ColoredFormatter):
 
         record.context = " ".join(dynamic_fields)
         try:
-            return super().format(record)
+            return str(super().format(record))
         finally:
             # The record is shared with the other handlers. Leaving the text
             # layout's helper field behind would leak it into JSON output.
-            del record.context
+            delattr(record, "context")
 
 
-def _build_console_formatter(stream: IO | None = None):
+def _build_console_formatter(stream: IO[str] | None = None) -> SmartFieldFormatter:
     """Return the coloured, verbose formatter used for console output.
 
     Colour is switched off automatically when ``stream`` is not a terminal,
@@ -207,7 +216,7 @@ class ContextFilter(logging.Filter):
     the global context.
     """
 
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         """Add the context fields and emoji to ``record`` and accept it."""
         context = get_log_context()
         for k, v in context.items():
@@ -230,7 +239,7 @@ class ContextFilter(logging.Filter):
         return True
 
 
-class ContextualLoggerAdapter(logging.LoggerAdapter):
+class ContextualLoggerAdapter(_AdapterBase):
     """Logger adapter that attaches context fields to every record.
 
     Fields come from three layers, lowest precedence first: the global
@@ -242,19 +251,21 @@ class ContextualLoggerAdapter(logging.LoggerAdapter):
         extra: Optional fields private to this adapter.
     """
 
-    def __init__(self, logger, extra=None):
+    def __init__(self, logger: logging.Logger, extra: Mapping[str, Any] | None = None) -> None:
         """Wrap ``logger``, optionally with fields private to this adapter."""
         super().__init__(logger, dict(extra or {}))
 
-    def process(self, msg, kwargs):
+    def process(
+        self, msg: Any, kwargs: MutableMapping[str, Any]
+    ) -> tuple[Any, MutableMapping[str, Any]]:
         """Merge the context layers into ``kwargs["extra"]``."""
         extra = get_log_context()
-        extra.update(self.extra)
+        extra.update(self.extra or {})
         extra.update(kwargs.get("extra") or {})
         kwargs["extra"] = extra
         return msg, kwargs
 
-    def with_context(self, **context):
+    def with_context(self, **context: Any) -> ContextualLoggerAdapter:
         """Return a new adapter with extra fields, leaving this one untouched.
 
         The global context is not modified, so the fields apply only to
@@ -269,7 +280,7 @@ class ContextualLoggerAdapter(logging.LoggerAdapter):
         Returns:
             A new :class:`ContextualLoggerAdapter` on the same logger.
         """
-        return ContextualLoggerAdapter(self.logger, {**self.extra, **context})
+        return ContextualLoggerAdapter(self.logger, {**(self.extra or {}), **context})
 
 
 def _reset_logger(logger: logging.Logger) -> None:
@@ -285,22 +296,23 @@ def _reset_logger(logger: logging.Logger) -> None:
 
 if JsonFormatter is not None:
 
-    class _PylogkitJsonFormatter(JsonFormatter):
+    class _PylogkitJsonFormatter(JsonFormatter):  # type: ignore[misc,unused-ignore]
         """JSON formatter with a stable field set and order.
 
         python-json-logger 2.x and later versions differ in the order of the
         fields and in which ones they skip, so both are normalised here.
         """
 
-        def process_log_record(self, log_record):
+        def process_log_record(self, log_record: dict[str, Any]) -> dict[str, Any]:
             for key in _JSON_INTERNAL_FIELDS:
                 log_record.pop(key, None)
             ordered = {k: log_record[k] for k in _JSON_LEADING_FIELDS if k in log_record}
             ordered.update(log_record)
-            return super().process_log_record(ordered)
+            processed: dict[str, Any] = super().process_log_record(ordered)
+            return processed
 
 
-def _build_json_formatter():
+def _build_json_formatter() -> logging.Formatter:
     """Return the JSON formatter for JSON file and console output.
 
     Each record has ``timestamp`` (ISO 8601 with UTC offset), ``level``,
@@ -348,11 +360,11 @@ def setup_logging(
     rotation: str = "size",
     max_bytes: int = 5 * 1024 * 1024,
     backup_count: int = 2,
-    context: dict | None = None,
+    context: dict[str, Any] | None = None,
     propagate: bool = False,
     syslog_address: tuple[str, int] | str = ("localhost", 514),
     syslog_facility: int = SysLogHandler.LOG_USER,
-    console_stream: IO | None = None,
+    console_stream: IO[str] | None = None,
 ) -> logging.Logger:
     """Configure and return a logger with console, file, JSON and syslog output.
 
@@ -471,7 +483,7 @@ def setup_logging(
     return logger
 
 
-def log_exception(logger: LoggerLike, msg: str):
+def log_exception(logger: LoggerLike, msg: str) -> None:
     """Log ``msg`` at ERROR level with the current exception's traceback.
 
     Call it from inside an ``except`` block. It is a thin wrapper around
@@ -481,7 +493,7 @@ def log_exception(logger: LoggerLike, msg: str):
 
 
 def setup_syslog_logger(
-    name: str = "myapp", level: str = "INFO", address: tuple = ("localhost", 514)
+    name: str = "myapp", level: str = "INFO", address: tuple[str, int] = ("localhost", 514)
 ) -> logging.Logger:
     """Return a logger that only writes to syslog at ``address``.
 
@@ -506,7 +518,9 @@ def setup_syslog_logger(
     )
 
 
-def log_duration(logger: LoggerLike, level: str = "info"):
+def log_duration(
+    logger: LoggerLike, level: str = "info"
+) -> Callable[[Callable[P, R]], Callable[P, R]]:
     """Return a decorator that logs how long the decorated function takes.
 
     The duration is measured with :func:`time.perf_counter`, a monotonic clock,
@@ -528,9 +542,9 @@ def log_duration(logger: LoggerLike, level: str = "info"):
     if not isinstance(numeric_level, int):
         raise ValueError(f"Unknown logging level: {level!r}")
 
-    def decorator(func):
+    def decorator(func: Callable[P, R]) -> Callable[P, R]:
         @wraps(func)
-        def wrapper(*args, **kwargs):
+        def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
             start = time.perf_counter()
             outcome = "took"
             try:
@@ -547,7 +561,7 @@ def log_duration(logger: LoggerLike, level: str = "info"):
     return decorator
 
 
-def tqdm_logging(iterable, logger: LoggerLike, level: str = "info"):
+def tqdm_logging(iterable: Iterable[T], logger: LoggerLike, level: str = "info") -> Iterator[T]:
     """Yield the items of ``iterable`` while reporting progress.
 
     When tqdm is installed a progress bar is shown. Otherwise one
@@ -567,7 +581,7 @@ def tqdm_logging(iterable, logger: LoggerLike, level: str = "info"):
         return
 
     log = getattr(logger, level)
-    total = len(iterable) if hasattr(iterable, "__len__") else None
+    total = len(iterable) if isinstance(iterable, Sized) else None
     for index, item in enumerate(iterable, 1):
         if total is None:
             log("Progress: %d", index)
@@ -611,7 +625,7 @@ if __name__ == "__main__":
         log_exception(log, "Division by zero error")
 
     @log_duration(log)
-    def simulate_work():
+    def simulate_work() -> None:
         """Sleep for a second, so there is a duration to log."""
         time.sleep(1)
 
