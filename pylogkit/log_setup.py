@@ -29,7 +29,7 @@ import time
 import threading
 import warnings
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler, SysLogHandler
-from typing import Optional, Tuple, Union
+from typing import IO, Optional, Tuple, Union
 from functools import lru_cache, wraps
 
 # 🎨 Colour config
@@ -142,8 +142,18 @@ class SmartFieldFormatter(colorlog.ColoredFormatter):
         record.context = " ".join(dynamic_fields)
         return super().format(record)
 
-def _build_console_formatter():
-    """Return the coloured, verbose formatter used for console output."""
+def _build_console_formatter(stream: Optional[IO] = None):
+    """Return the coloured, verbose formatter used for console output.
+
+    Colour is switched off automatically when ``stream`` is not a terminal,
+    when the ``NO_COLOR`` environment variable is set, or when ``TERM`` is
+    ``dumb``. Setting ``FORCE_COLOR`` turns it back on, for example for CI
+    systems that render ANSI colours although their output is piped.
+
+    Args:
+        stream: The stream the formatted text is written to, used to detect
+            whether it is a terminal. ``None`` skips that check.
+    """
     return SmartFieldFormatter(
         fmt=f"%({COLOUR_TIMESTAMP})s%(asctime)s%(reset)s "
             "[%(log_color)s%(levelname)s %(emoji)s%(reset)s] "
@@ -158,6 +168,8 @@ def _build_console_formatter():
         secondary_log_colors={"message": _LEVEL_COLOURS},
         style="%",
         reset=True,
+        stream=stream,
+        no_color=os.environ.get("TERM") == "dumb",
     )
 
 
@@ -284,7 +296,8 @@ def setup_logging(name: Optional[str] = None,
                   context: Optional[dict] = None,
                   propagate: bool = False,
                   syslog_address: Union[Tuple[str, int], str] = ("localhost", 514),
-                  syslog_facility: int = SysLogHandler.LOG_USER) -> logging.Logger:
+                  syslog_facility: int = SysLogHandler.LOG_USER,
+                  console_stream: Optional[IO] = None) -> logging.Logger:
     """Configure and return a logger with console, file, JSON and syslog output.
 
     The function is idempotent: calling it again for the same logger replaces
@@ -300,7 +313,7 @@ def setup_logging(name: Optional[str] = None,
         name: Logger name. ``None`` configures the root logger.
         overwrite: Truncate the plain-text and JSON log files when logging is
             set up instead of appending to them.
-        to_console: Log to standard output.
+        to_console: Log to the console (see ``console_stream``).
         to_file: Log to ``file_path``.
         file_path: Path of the plain-text log file.
         to_json_file: Log JSON lines to ``json_file_path``.
@@ -327,6 +340,11 @@ def setup_logging(name: Optional[str] = None,
             path of a Unix domain socket such as ``"/dev/log"``.
         syslog_facility: Syslog facility, for example
             ``logging.handlers.SysLogHandler.LOG_LOCAL0``.
+        console_stream: Stream for console output, for example ``sys.stderr``.
+            Defaults to ``sys.stdout`` as it is when this function is called.
+            Console colour is disabled when the stream is not a terminal, when
+            ``NO_COLOR`` is set or ``TERM`` is ``dumb``, unless ``FORCE_COLOR``
+            is set.
 
     Returns:
         The configured :class:`logging.Logger`.
@@ -343,15 +361,16 @@ def setup_logging(name: Optional[str] = None,
     if context:
         set_log_context(**context)
 
+    stream = console_stream if console_stream is not None else sys.stdout
     if use_json:
         formatter = _build_json_formatter()
     elif mode == "compact":
         formatter = logging.Formatter(COMPACT_FORMAT, datefmt=DATE_FORMAT)
     else:
-        formatter = _build_console_formatter()
+        formatter = _build_console_formatter(stream)
 
     if to_console:
-        console_handler = logging.StreamHandler(sys.stdout)
+        console_handler = logging.StreamHandler(stream)
         console_handler.setLevel((console_level or level).upper())
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)

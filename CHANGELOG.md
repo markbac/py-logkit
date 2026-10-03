@@ -11,6 +11,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `setup_logging()` accepts `syslog_address` (a `(host, port)` tuple or a Unix
   socket path such as `/dev/log`) and `syslog_facility`. Syslog lines now
   include the context fields (#12).
+- `setup_logging(console_stream=...)` selects the console stream, for example
+  `sys.stderr`. The default is still `sys.stdout` (#13).
 
 ### Changed
 
@@ -29,6 +31,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   classes have docstrings (#10).
 - The host name is looked up once and cached instead of calling
   `socket.gethostname()` for every log record (#11).
+- Console colour is now disabled automatically when the stream is not a
+  terminal, when `NO_COLOR` is set or when `TERM=dumb`. `FORCE_COLOR` turns it
+  back on, which CI systems that render ANSI colours can use. Piped output
+  therefore no longer contains escape codes (#13).
 
 ### Deprecated
 
