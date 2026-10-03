@@ -34,3 +34,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   truncates the plain-text and JSON log files, `use_json` writes JSON to the
   console, and `mode="compact"` works whether or not python-json-logger is
   installed (#6).
+- Records from child loggers (for example `myapp.db`) are no longer dropped
+  with `ValueError: Formatting field not found in record: 'emoji'`.
+  `ContextFilter` is now attached to each handler instead of the logger, so
+  every record a handler emits gets the context fields and level emoji (#7).

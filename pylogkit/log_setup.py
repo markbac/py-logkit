@@ -170,7 +170,7 @@ class ContextualLoggerAdapter(logging.LoggerAdapter):
         return ContextualLoggerAdapter(self.logger, {**self.extra, **context})
 
 def _reset_logger(logger: logging.Logger) -> None:
-    """Remove and close the handlers and context filters ``logger`` has.
+    """Remove and close the handlers ``logger`` has.
 
     Closing matters for file handlers: dropping them without closing leaks
     open file descriptors every time logging is reconfigured.
@@ -178,8 +178,6 @@ def _reset_logger(logger: logging.Logger) -> None:
     for handler in list(logger.handlers):
         logger.removeHandler(handler)
         handler.close()
-    for log_filter in [f for f in logger.filters if isinstance(f, ContextFilter)]:
-        logger.removeFilter(log_filter)
 
 
 def _build_json_formatter():
@@ -227,8 +225,13 @@ def setup_logging(name: Optional[str] = None,
     """Configure and return a logger with console, file, JSON and syslog output.
 
     The function is idempotent: calling it again for the same logger replaces
-    the handlers and context filter installed by the previous call (closing
-    the old handlers) instead of adding to them.
+    the handlers installed by the previous call (closing the old handlers)
+    instead of adding to them.
+
+    The :class:`ContextFilter` is attached to each handler rather than to the
+    logger. Logger-level filters are skipped for records that propagate up
+    from child loggers (``logging.getLogger("name.child")``), whereas handler
+    filters see every record the handler emits.
 
     Args:
         name: Logger name. ``None`` configures the root logger.
@@ -270,7 +273,6 @@ def setup_logging(name: Optional[str] = None,
     _reset_logger(logger)
     logger.propagate = propagate
 
-    logger.addFilter(ContextFilter())
     if context:
         set_log_context(**context)
 
@@ -347,6 +349,10 @@ def setup_logging(name: Optional[str] = None,
         syslog_formatter = logging.Formatter("%(name)s[%(process)d]: %(levelname)s %(message)s")
         syslog_handler.setFormatter(syslog_formatter)
         logger.addHandler(syslog_handler)
+
+    context_filter = ContextFilter()
+    for handler in logger.handlers:
+        handler.addFilter(context_filter)
 
     return logger
 
