@@ -7,7 +7,7 @@ setup(
     author='Mark Bacon',
     packages=find_packages(),
     install_requires=[
-        'colourlog>=6.0.0',
+        'colorlog>=6.0.0',
         'python-json-logger>=2.0.7'
     ],
     classifiers=[
