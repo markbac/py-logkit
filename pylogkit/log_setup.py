@@ -24,8 +24,11 @@ Example::
 
 from __future__ import annotations
 
+import atexit
+import copy
 import logging
 import os
+import queue
 import socket
 import sys
 import time
@@ -34,7 +37,13 @@ from collections.abc import Callable, Iterable, Iterator, Sized
 from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import cache, wraps
-from logging.handlers import RotatingFileHandler, SysLogHandler, TimedRotatingFileHandler
+from logging.handlers import (
+    QueueHandler,
+    QueueListener,
+    RotatingFileHandler,
+    SysLogHandler,
+    TimedRotatingFileHandler,
+)
 from typing import IO, TYPE_CHECKING, Any, ParamSpec, TypeVar
 
 if TYPE_CHECKING:
@@ -320,15 +329,62 @@ class ContextualLoggerAdapter(_AdapterBase):
         return ContextualLoggerAdapter(self.logger, {**(self.extra or {}), **context})
 
 
+class _QueueHandler(QueueHandler):
+    """Queue handler that hands records over without losing information.
+
+    :class:`logging.handlers.QueueHandler` formats the record and drops
+    ``exc_info``, which would move tracebacks into the message and out of the
+    JSON ``exc_info`` field. This subclass only resolves the message
+    arguments, so the listener's handlers format the record as usual.
+    """
+
+    def prepare(self, record: logging.LogRecord) -> logging.LogRecord:
+        """Return a copy of ``record`` with ``msg`` and ``args`` already merged."""
+        record = copy.copy(record)
+        record.msg = record.getMessage()
+        record.args = None
+        return record
+
+
+# Listeners that own the real handlers of loggers configured with ``use_queue``.
+_listeners: dict[str, QueueListener] = {}
+_atexit_registered = False
+
+
+def _stop_listener(logger: logging.Logger) -> None:
+    """Stop the listener of ``logger``, if any, after it has handled queued records."""
+    listener = _listeners.pop(logger.name, None)
+    if listener is not None:
+        listener.stop()
+        for handler in listener.handlers:
+            handler.close()
+
+
 def _reset_logger(logger: logging.Logger) -> None:
     """Remove and close the handlers ``logger`` has.
 
     Closing matters for file handlers: dropping them without closing leaks
-    open file descriptors every time logging is reconfigured.
+    open file descriptors every time logging is reconfigured. A queue
+    listener is stopped, and so flushed, after the logger stops feeding it.
     """
     for handler in list(logger.handlers):
         logger.removeHandler(handler)
         handler.close()
+    _stop_listener(logger)
+
+
+def shutdown_logging() -> None:
+    """Flush and stop the background logging of every ``use_queue`` logger.
+
+    Records still waiting in a queue are written, then the listener threads
+    stop and their handlers are closed. The affected loggers are left without
+    handlers. It is safe to call more than once, and it runs automatically
+    when the interpreter exits, so call it explicitly only when you need the
+    output to be complete at a particular point, for example before
+    ``os._exit()`` or before reading a log file.
+    """
+    for name in list(_listeners):
+        _reset_logger(logging.getLogger(name))
 
 
 if JsonFormatter is not None:
@@ -455,6 +511,7 @@ def setup_logging(
     syslog_facility: int = SysLogHandler.LOG_USER,
     console_stream: IO[str] | None = None,
     use_emoji: bool = True,
+    use_queue: bool = False,
 ) -> logging.Logger:
     """Configure and return a logger with console, file, JSON and syslog output.
 
@@ -518,6 +575,11 @@ def setup_logging(
         use_emoji: Show a level emoji after the level name in the verbose
             console layout. Set it to false for terminals and log viewers
             that render emoji badly.
+        use_queue: Hand records to a background thread through a queue, so
+            that slow handlers (files, syslog) do not block the code that logs.
+            The queue is unbounded. Records are written when the thread gets
+            to them, so call :func:`shutdown_logging` to wait for the queue to
+            drain. That happens automatically at interpreter exit.
 
     Returns:
         The configured :class:`logging.Logger`.
@@ -546,11 +608,13 @@ def setup_logging(
     else:
         formatter = _build_console_formatter(stream)
 
+    handlers: list[logging.Handler] = []
+
     if to_console:
         console_handler = logging.StreamHandler(stream)
         console_handler.setLevel((console_level or level).upper())
         console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
+        handlers.append(console_handler)
 
     if to_file and file_path:
         _prepare_log_file(file_path, overwrite)
@@ -566,7 +630,7 @@ def setup_logging(
         file_handler.setLevel((file_level or level).upper())
         file_formatter = SmartFieldFormatter(FILE_FORMAT, datefmt=DATE_FORMAT, no_color=True)
         file_handler.setFormatter(file_formatter)
-        logger.addHandler(file_handler)
+        handlers.append(file_handler)
 
     if to_json_file and json_file_path:
         json_formatter = _build_json_formatter()
@@ -576,20 +640,45 @@ def setup_logging(
         )
         json_handler.setLevel((json_level or level).upper())
         json_handler.setFormatter(json_formatter)
-        logger.addHandler(json_handler)
+        handlers.append(json_handler)
 
     if to_syslog:
         syslog_handler = SysLogHandler(address=syslog_address, facility=syslog_facility)
         syslog_handler.setLevel((syslog_level or level).upper())
         syslog_formatter = SmartFieldFormatter(SYSLOG_FORMAT, no_color=True)
         syslog_handler.setFormatter(syslog_formatter)
-        logger.addHandler(syslog_handler)
+        handlers.append(syslog_handler)
 
     context_filter = ContextFilter(use_emoji=use_emoji)
-    for handler in logger.handlers:
-        handler.addFilter(context_filter)
+    if use_queue:
+        _start_queue(logger, handlers, context_filter)
+    else:
+        for handler in handlers:
+            handler.addFilter(context_filter)
+            logger.addHandler(handler)
 
     return logger
+
+
+def _start_queue(
+    logger: logging.Logger, handlers: list[logging.Handler], context_filter: ContextFilter
+) -> None:
+    """Route ``logger`` through a queue drained by a listener thread owning ``handlers``.
+
+    The context filter runs on the queue handler, that is in the thread that
+    logs, because the listener thread has no access to that thread's context.
+    """
+    global _atexit_registered
+    log_queue: queue.SimpleQueue[logging.LogRecord] = queue.SimpleQueue()
+    queue_handler = _QueueHandler(log_queue)
+    queue_handler.addFilter(context_filter)
+    listener = QueueListener(log_queue, *handlers, respect_handler_level=True)
+    listener.start()
+    _listeners[logger.name] = listener
+    logger.addHandler(queue_handler)
+    if not _atexit_registered:
+        atexit.register(shutdown_logging)
+        _atexit_registered = True
 
 
 def log_exception(logger: LoggerLike, msg: str) -> None:

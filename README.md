@@ -129,6 +129,7 @@ log.info("outside")              # carries neither
 | `to_console` | `True` | Log to the console. |
 | `console_level` | `None` | Console level, defaulting to `level`. |
 | `console_stream` | `None` | Console stream, for example `sys.stderr`. Defaults to `sys.stdout`. |
+| `use_queue` | `False` | Write records on a background thread, so slow handlers do not block your code. See below. |
 | `use_emoji` | `True` | Show a level emoji in the verbose console layout. Set `False` for terminals that render emoji badly. |
 | `mode` | `None` | Console layout: `"verbose"` (coloured, with source location and context) or `"compact"` (`[LEVEL] message`). Falls back to `LOG_FORMAT`, then `"verbose"`. |
 | `use_json` | `None` | Write JSON lines to the console instead. Needs the `json` extra. Falls back to `LOG_FORMAT`. |
@@ -157,6 +158,25 @@ Things worth knowing:
   logger also has handlers and you want records there too.
 - Asking for JSON output without `python-json-logger` installed raises an `ImportError` with an
   install hint.
+
+### Non-blocking logging
+
+File, syslog and network handlers can stall the thread that logs. With `use_queue=True` the logger
+only puts the record on an in-memory queue, and a background thread owns the real handlers and
+writes it. The context fields are captured on the calling thread, so they are still correct.
+
+```python
+from pylogkit import setup_logging, shutdown_logging
+
+logger = setup_logging("app", to_file=True, use_queue=True)
+logger.info("returns without waiting for the file")
+shutdown_logging()   # waits for queued records to be written
+```
+
+The queue is unbounded, and records are written a moment after the call, so
+`shutdown_logging()` is how you wait for them. It also runs automatically when the interpreter
+exits, and it is safe to call more than once. After it, the affected loggers have no handlers until
+you call `setup_logging()` again.
 
 ### Environment variables
 
