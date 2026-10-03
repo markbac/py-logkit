@@ -41,6 +41,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `log_context(**fields)` is a context manager that adds fields to the log
   context for a `with` block and restores the previous context on exit,
   including on exceptions (#21).
+- `setup_logging()` reads `LOG_LEVEL`, `LOG_FORMAT` (`pretty`, `compact`,
+  `json` or `auto`) and `LOG_FILE` when the matching arguments are not passed.
+  Explicit arguments always override the environment (#22).
 
 ### Changed
 
@@ -77,6 +80,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The global log context is held in a `contextvars.ContextVar` instead of
   `threading.local`, so it follows `asyncio` tasks as well as threads. A new
   thread still starts with an empty context (#21).
+- The defaults of `level`, `mode`, `use_json`, `to_file` and `file_path` are
+  now `None`, meaning "use the environment, then the built-in default".
+  Behaviour without environment variables is unchanged, except that passing
+  `file_path=None` no longer disables file output: use `to_file=False` (#22).
 
 ### Deprecated
 

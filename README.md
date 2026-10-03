@@ -125,15 +125,15 @@ log.info("outside")              # carries neither
 | Argument | Default | Purpose |
 | --- | --- | --- |
 | `name` | `None` | Logger name. `None` configures the root logger. |
-| `level` | `"INFO"` | Level for every handler unless overridden below. |
+| `level` | `None` | Level for every handler unless overridden below. Falls back to `LOG_LEVEL`, then `"INFO"`. |
 | `to_console` | `True` | Log to the console. |
 | `console_level` | `None` | Console level, defaulting to `level`. |
 | `console_stream` | `None` | Console stream, for example `sys.stderr`. Defaults to `sys.stdout`. |
 | `use_emoji` | `True` | Show a level emoji in the verbose console layout. Set `False` for terminals that render emoji badly. |
-| `mode` | `"verbose"` | Console layout: `"verbose"` (coloured, with source location and context) or `"compact"` (`[LEVEL] message`). |
-| `use_json` | `False` | Write JSON lines to the console instead. Needs the `json` extra. |
-| `to_file` | `False` | Log to `file_path`. |
-| `file_path` | `"app.log"` | Plain-text log file. Parent directories are created. |
+| `mode` | `None` | Console layout: `"verbose"` (coloured, with source location and context) or `"compact"` (`[LEVEL] message`). Falls back to `LOG_FORMAT`, then `"verbose"`. |
+| `use_json` | `None` | Write JSON lines to the console instead. Needs the `json` extra. Falls back to `LOG_FORMAT`. |
+| `to_file` | `None` | Log to `file_path`. Defaults to on when `LOG_FILE` is set, otherwise off. |
+| `file_path` | `None` | Plain-text log file. Falls back to `LOG_FILE`, then `"app.log"`. Parent directories are created. |
 | `file_level` | `None` | File level, defaulting to `level`. |
 | `to_json_file` | `False` | Log JSON lines to `json_file_path`. Needs the `json` extra. |
 | `json_file_path` | `"app.json.log"` | JSON log file. |
@@ -157,6 +157,21 @@ Things worth knowing:
   logger also has handlers and you want records there too.
 - Asking for JSON output without `python-json-logger` installed raises an `ImportError` with an
   install hint.
+
+### Environment variables
+
+Deployments can change logging without code changes. An argument passed to `setup_logging()` always
+wins over the environment.
+
+| Variable | Effect |
+| --- | --- |
+| `LOG_LEVEL` | Default level, for example `DEBUG`. Used when `level` is not passed. |
+| `LOG_FORMAT` | Console layout: `pretty` (the default), `compact`, `json`, or `auto` (pretty on a terminal, JSON otherwise). Ignored when `mode` or `use_json` is passed. Any other value raises `ValueError`. |
+| `LOG_FILE` | Path of a plain-text log file. Turns file logging on unless `to_file` is passed, and sets `file_path` unless that is passed. |
+
+```bash
+LOG_LEVEL=DEBUG LOG_FORMAT=auto LOG_FILE=/var/log/app.log python app.py
+```
 
 ### Console colour
 
