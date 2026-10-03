@@ -21,6 +21,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   built by one helper, level colours are defined once, format strings and the
   date format are module constants, and the remaining public functions and
   classes have docstrings (#10).
+- The host name is looked up once and cached instead of calling
+  `socket.gethostname()` for every log record (#11).
 
 ### Removed
 

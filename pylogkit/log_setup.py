@@ -23,12 +23,13 @@ Example::
 
 import logging
 import os
+import socket
 import sys
 import time
 import threading
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler, SysLogHandler
 from typing import Optional
-from functools import wraps
+from functools import lru_cache, wraps
 
 # 🎨 Colour config
 COLOUR_TIMESTAMP = "bold_purple"
@@ -82,19 +83,30 @@ def clear_log_context():
     """Remove all fields from the global log context of the current thread."""
     _log_context.data = {}
 
+@lru_cache(maxsize=None)
+def _hostname() -> str:
+    """Return the host name, looked up once.
+
+    ``socket.gethostname()`` can be slow on some systems and the value does
+    not change while the process runs, so it must not be queried per record.
+    """
+    return socket.gethostname()
+
+
 def get_log_context():
     """Return a copy of the active context, with defaults filled in.
 
     Defaults are ``"-"`` for ``user_id``, ``session_id`` and ``request_id``,
-    plus the host name, the ``APP_ENV`` environment variable (``"dev"`` if
-    unset) and the process id.
+    plus the cached host name, the ``APP_ENV`` environment variable (``"dev"``
+    if unset) and the process id. ``APP_ENV`` and the process id are read on
+    every call because they are cheap and may change (for example after a
+    ``fork``).
     """
-    import socket
     context = getattr(_log_context, 'data', {}).copy()
     context.setdefault("user_id", "-")
     context.setdefault("session_id", "-")
     context.setdefault("request_id", "-")
-    context.setdefault("hostname", socket.gethostname())
+    context.setdefault("hostname", _hostname())
     context.setdefault("env", os.getenv("APP_ENV", "dev"))
     context.setdefault("pid", os.getpid())
     return context
