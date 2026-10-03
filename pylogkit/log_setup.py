@@ -39,10 +39,13 @@ try:
 except ImportError:
     raise ImportError("Please install 'colorlog' using pip: pip install colorlog")
 
-try:
-    from pythonjsonlogger import jsonlogger
+try:  # python-json-logger 3.1 and later
+    from pythonjsonlogger.json import JsonFormatter
 except ImportError:
-    jsonlogger = None
+    try:  # python-json-logger 2.x, where the class lives in ``jsonlogger``
+        from pythonjsonlogger.jsonlogger import JsonFormatter
+    except ImportError:
+        JsonFormatter = None
 
 try:
     from tqdm import tqdm
@@ -186,11 +189,11 @@ def _build_json_formatter():
     Raises:
         ImportError: If ``python-json-logger`` is not installed.
     """
-    if jsonlogger is None:
+    if JsonFormatter is None:
         raise ImportError(
             "JSON output needs 'python-json-logger': pip install python-json-logger"
         )
-    return jsonlogger.JsonFormatter(json_ensure_ascii=False)
+    return JsonFormatter(json_ensure_ascii=False)
 
 
 def _prepare_log_file(path: str, overwrite: bool) -> None:

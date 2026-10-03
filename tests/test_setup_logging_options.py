@@ -62,7 +62,7 @@ def test_use_json_writes_json_to_the_console(capsys):
 
 def test_compact_mode_is_honoured_with_json_library_installed(capsys):
     """The JSON library being importable must not override ``mode``."""
-    assert log_setup.jsonlogger is not None
+    assert log_setup.JsonFormatter is not None
     logger = setup_logging("opt-compact", mode="compact")
 
     logger.info("hello")
@@ -86,7 +86,7 @@ def test_json_file_contains_valid_json_lines(tmp_path):
 @pytest.mark.parametrize("option", [{"use_json": True}, {"to_json_file": True}])
 def test_json_options_fail_clearly_without_the_library(monkeypatch, option):
     """Requesting JSON output without python-json-logger raises ImportError."""
-    monkeypatch.setattr(log_setup, "jsonlogger", None)
+    monkeypatch.setattr(log_setup, "JsonFormatter", None)
 
     with pytest.raises(ImportError, match="python-json-logger"):
         setup_logging("opt-missing-lib", to_console=False, **option)
