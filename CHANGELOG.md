@@ -27,6 +27,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   imports the wheel from a clean environment. Ruff (pycodestyle, pyflakes,
   isort, pep8-naming, pyupgrade, bugbear and pydocstyle) and mypy are
   configured in `pyproject.toml` (#17).
+- The package is fully type annotated, ships a PEP 561 `py.typed` marker and
+  is checked with `mypy --strict` in CI. A CI step checks that the wheel
+  contains the marker (#19).
 
 ### Changed
 

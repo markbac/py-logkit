@@ -183,7 +183,7 @@ pip install -e ".[all,dev]"
 pytest                   # run the tests
 pytest --cov             # with coverage (the build fails below 90%)
 ruff check . && ruff format --check .   # lint and formatting
-mypy                     # type checking
+mypy                     # strict type checking (the package ships py.typed)
 ```
 
 The same checks run in GitHub Actions on every push and pull request, across Python 3.10 to 3.14,
