@@ -21,16 +21,24 @@ Example::
     logger.with_context(user_id="bob").info("Info with dynamic context")
 """
 
+from __future__ import annotations
+
 import logging
 import os
 import socket
 import sys
-import time
 import threading
+import time
 import warnings
-from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler, SysLogHandler
-from typing import IO, Optional, Tuple, Union
-from functools import lru_cache, wraps
+from functools import cache, wraps
+from logging.handlers import RotatingFileHandler, SysLogHandler, TimedRotatingFileHandler
+from typing import IO, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from typing import TypeAlias
+
+    # The helpers work with a plain logger and with a ContextualLoggerAdapter.
+    LoggerLike: TypeAlias = "logging.Logger | logging.LoggerAdapter[logging.Logger]"
 
 # 🎨 Colour config
 COLOUR_TIMESTAMP = "bold_purple"
@@ -66,8 +74,8 @@ _LEVEL_COLOURS = {
 
 try:
     import colorlog
-except ImportError:
-    raise ImportError("Please install 'colorlog' using pip: pip install colorlog")
+except ImportError as err:
+    raise ImportError("Please install 'colorlog' using pip: pip install colorlog") from err
 
 try:  # python-json-logger 3.1 and later
     from pythonjsonlogger.json import JsonFormatter
@@ -75,7 +83,7 @@ except ImportError:
     try:  # python-json-logger 2.x, where the class lives in ``jsonlogger``
         from pythonjsonlogger.jsonlogger import JsonFormatter
     except ImportError:
-        JsonFormatter = None
+        JsonFormatter = None  # type: ignore[assignment,misc,unused-ignore]
 
 try:
     from tqdm import tqdm
@@ -84,15 +92,18 @@ except ImportError:
 
 _log_context = threading.local()
 
+
 def set_log_context(**kwargs):
     """Replace the global log context of the current thread with ``kwargs``."""
     _log_context.data = kwargs
+
 
 def clear_log_context():
     """Remove all fields from the global log context of the current thread."""
     _log_context.data = {}
 
-@lru_cache(maxsize=None)
+
+@cache
 def _hostname() -> str:
     """Return the host name, looked up once.
 
@@ -111,7 +122,7 @@ def get_log_context():
     every call because they are cheap and may change (for example after a
     ``fork``).
     """
-    context = getattr(_log_context, 'data', {}).copy()
+    context = getattr(_log_context, "data", {}).copy()
     context.setdefault("user_id", "-")
     context.setdefault("session_id", "-")
     context.setdefault("request_id", "-")
@@ -119,6 +130,7 @@ def get_log_context():
     context.setdefault("env", os.getenv("APP_ENV", "dev"))
     context.setdefault("pid", os.getpid())
     return context
+
 
 class SmartFieldFormatter(colorlog.ColoredFormatter):
     """Colour formatter that builds a compact ``%(context)s`` field.
@@ -128,6 +140,7 @@ class SmartFieldFormatter(colorlog.ColoredFormatter):
     """
 
     def format(self, record):
+        """Format ``record`` after adding the ``%(context)s`` field to it."""
         for key in ["user_id", "session_id", "request_id", "hostname", "env", "pid"]:
             if not hasattr(record, key):
                 setattr(record, key, "")
@@ -138,7 +151,7 @@ class SmartFieldFormatter(colorlog.ColoredFormatter):
             "request_id": record.request_id,
             "hostname": record.hostname,
             "env": record.env,
-            "pid": record.pid
+            "pid": record.pid,
         }
 
         dynamic_fields = []
@@ -154,7 +167,8 @@ class SmartFieldFormatter(colorlog.ColoredFormatter):
             # layout's helper field behind would leak it into JSON output.
             del record.context
 
-def _build_console_formatter(stream: Optional[IO] = None):
+
+def _build_console_formatter(stream: IO | None = None):
     """Return the coloured, verbose formatter used for console output.
 
     Colour is switched off automatically when ``stream`` is not a terminal,
@@ -168,13 +182,13 @@ def _build_console_formatter(stream: Optional[IO] = None):
     """
     return SmartFieldFormatter(
         fmt=f"%({COLOUR_TIMESTAMP})s%(asctime)s%(reset)s "
-            "[%(log_color)s%(levelname)s %(emoji)s%(reset)s] "
-            f"[%({COLOUR_MODULE_NAME})s%(name)s%(reset)s] "
-            f"%({COLOUR_FILENAME})s%(filename)s%(reset)s::"
-            f"%({COLOUR_FUNCTION})s%(funcName)s%(reset)s():"
-            f"%({COLOUR_LINENO})s%(lineno)d%(reset)s "
-            f"%({COLOUR_CONTEXT_LABEL})s%(context)s%(reset)s - "
-            "%(log_color)s%(message)s%(reset)s",
+        "[%(log_color)s%(levelname)s %(emoji)s%(reset)s] "
+        f"[%({COLOUR_MODULE_NAME})s%(name)s%(reset)s] "
+        f"%({COLOUR_FILENAME})s%(filename)s%(reset)s::"
+        f"%({COLOUR_FUNCTION})s%(funcName)s%(reset)s():"
+        f"%({COLOUR_LINENO})s%(lineno)d%(reset)s "
+        f"%({COLOUR_CONTEXT_LABEL})s%(context)s%(reset)s - "
+        "%(log_color)s%(message)s%(reset)s",
         datefmt=DATE_FORMAT,
         log_colors=_LEVEL_COLOURS,
         secondary_log_colors={"message": _LEVEL_COLOURS},
@@ -194,25 +208,27 @@ class ContextFilter(logging.Filter):
     """
 
     def filter(self, record):
+        """Add the context fields and emoji to ``record`` and accept it."""
         context = get_log_context()
         for k, v in context.items():
             if not hasattr(record, k):
                 setattr(record, k, v)
         emoji_map = {
-            'DEBUG': '🐛',
-            'INFO': 'ℹ️',
-            'WARNING': '⚠️',
-            'ERROR': '❌',
-            'CRITICAL': '💥',
-            'SYSTEM': '🖥️',
-            'SECURITY': '🔐',
-            'NETWORK': '🌐',
-            'DATABASE': '🗄️',
-            'STARTUP': '🚀',
-            'SHUTDOWN': '🛑'
+            "DEBUG": "🐛",
+            "INFO": "ℹ️",
+            "WARNING": "⚠️",
+            "ERROR": "❌",
+            "CRITICAL": "💥",
+            "SYSTEM": "🖥️",
+            "SECURITY": "🔐",
+            "NETWORK": "🌐",
+            "DATABASE": "🗄️",
+            "STARTUP": "🚀",
+            "SHUTDOWN": "🛑",
         }
-        setattr(record, 'emoji', emoji_map.get(record.levelname, ''))
+        record.emoji = emoji_map.get(record.levelname, "")
         return True
+
 
 class ContextualLoggerAdapter(logging.LoggerAdapter):
     """Logger adapter that attaches context fields to every record.
@@ -227,6 +243,7 @@ class ContextualLoggerAdapter(logging.LoggerAdapter):
     """
 
     def __init__(self, logger, extra=None):
+        """Wrap ``logger``, optionally with fields private to this adapter."""
         super().__init__(logger, dict(extra or {}))
 
     def process(self, msg, kwargs):
@@ -253,6 +270,7 @@ class ContextualLoggerAdapter(logging.LoggerAdapter):
             A new :class:`ContextualLoggerAdapter` on the same logger.
         """
         return ContextualLoggerAdapter(self.logger, {**self.extra, **context})
+
 
 def _reset_logger(logger: logging.Logger) -> None:
     """Remove and close the handlers ``logger`` has.
@@ -293,9 +311,7 @@ def _build_json_formatter():
         ImportError: If ``python-json-logger`` is not installed.
     """
     if JsonFormatter is None:
-        raise ImportError(
-            "JSON output needs 'python-json-logger': pip install python-json-logger"
-        )
+        raise ImportError("JSON output needs 'python-json-logger': pip install python-json-logger")
     return _PylogkitJsonFormatter(
         JSON_FORMAT,
         datefmt=JSON_DATE_FORMAT,
@@ -313,29 +329,31 @@ def _prepare_log_file(path: str, overwrite: bool) -> None:
         open(path, "w", encoding="utf-8").close()
 
 
-def setup_logging(name: Optional[str] = None,
-                  overwrite: bool = False,
-                  to_console: bool = True,
-                  to_file: bool = False,
-                  file_path: Optional[str] = "app.log",
-                  to_json_file: bool = False,
-                  json_file_path: Optional[str] = "app.json.log",
-                  to_syslog: bool = False,
-                  level: str = "INFO",
-                  console_level: Optional[str] = None,
-                  file_level: Optional[str] = None,
-                  json_level: Optional[str] = None,
-                  syslog_level: Optional[str] = None,
-                  mode: str = "verbose",
-                  use_json: bool = False,
-                  rotation: str = "size",
-                  max_bytes: int = 5*1024*1024,
-                  backup_count: int = 2,
-                  context: Optional[dict] = None,
-                  propagate: bool = False,
-                  syslog_address: Union[Tuple[str, int], str] = ("localhost", 514),
-                  syslog_facility: int = SysLogHandler.LOG_USER,
-                  console_stream: Optional[IO] = None) -> logging.Logger:
+def setup_logging(
+    name: str | None = None,
+    overwrite: bool = False,
+    to_console: bool = True,
+    to_file: bool = False,
+    file_path: str | None = "app.log",
+    to_json_file: bool = False,
+    json_file_path: str | None = "app.json.log",
+    to_syslog: bool = False,
+    level: str = "INFO",
+    console_level: str | None = None,
+    file_level: str | None = None,
+    json_level: str | None = None,
+    syslog_level: str | None = None,
+    mode: str = "verbose",
+    use_json: bool = False,
+    rotation: str = "size",
+    max_bytes: int = 5 * 1024 * 1024,
+    backup_count: int = 2,
+    context: dict | None = None,
+    propagate: bool = False,
+    syslog_address: tuple[str, int] | str = ("localhost", 514),
+    syslog_facility: int = SysLogHandler.LOG_USER,
+    console_stream: IO | None = None,
+) -> logging.Logger:
     """Configure and return a logger with console, file, JSON and syslog output.
 
     The function is idempotent: calling it again for the same logger replaces
@@ -415,10 +433,15 @@ def setup_logging(name: Optional[str] = None,
 
     if to_file and file_path:
         _prepare_log_file(file_path, overwrite)
+        file_handler: RotatingFileHandler | TimedRotatingFileHandler
         if rotation == "time":
-            file_handler = TimedRotatingFileHandler(file_path, when="midnight", backupCount=backup_count, encoding='utf-8')
+            file_handler = TimedRotatingFileHandler(
+                file_path, when="midnight", backupCount=backup_count, encoding="utf-8"
+            )
         else:
-            file_handler = RotatingFileHandler(file_path, maxBytes=max_bytes, backupCount=backup_count, encoding='utf-8')
+            file_handler = RotatingFileHandler(
+                file_path, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8"
+            )
         file_handler.setLevel((file_level or level).upper())
         file_formatter = SmartFieldFormatter(FILE_FORMAT, datefmt=DATE_FORMAT, no_color=True)
         file_handler.setFormatter(file_formatter)
@@ -427,7 +450,9 @@ def setup_logging(name: Optional[str] = None,
     if to_json_file and json_file_path:
         json_formatter = _build_json_formatter()
         _prepare_log_file(json_file_path, overwrite)
-        json_handler = RotatingFileHandler(json_file_path, maxBytes=max_bytes, backupCount=backup_count, encoding='utf-8')
+        json_handler = RotatingFileHandler(
+            json_file_path, maxBytes=max_bytes, backupCount=backup_count, encoding="utf-8"
+        )
         json_handler.setLevel((json_level or level).upper())
         json_handler.setFormatter(json_formatter)
         logger.addHandler(json_handler)
@@ -445,7 +470,8 @@ def setup_logging(name: Optional[str] = None,
 
     return logger
 
-def log_exception(logger: logging.Logger, msg: str):
+
+def log_exception(logger: LoggerLike, msg: str):
     """Log ``msg`` at ERROR level with the current exception's traceback.
 
     Call it from inside an ``except`` block. It is a thin wrapper around
@@ -453,9 +479,10 @@ def log_exception(logger: logging.Logger, msg: str):
     """
     logger.exception(msg)
 
-def setup_syslog_logger(name: str = "myapp",
-                        level: str = "INFO",
-                        address: tuple = ("localhost", 514)) -> logging.Logger:
+
+def setup_syslog_logger(
+    name: str = "myapp", level: str = "INFO", address: tuple = ("localhost", 514)
+) -> logging.Logger:
     """Return a logger that only writes to syslog at ``address``.
 
     .. deprecated::
@@ -474,11 +501,12 @@ def setup_syslog_logger(name: str = "myapp",
         DeprecationWarning,
         stacklevel=2,
     )
-    return setup_logging(name=name, to_console=False, to_syslog=True,
-                         level=level, syslog_address=address)
+    return setup_logging(
+        name=name, to_console=False, to_syslog=True, level=level, syslog_address=address
+    )
 
 
-def log_duration(logger: logging.Logger, level: str = "info"):
+def log_duration(logger: LoggerLike, level: str = "info"):
     """Return a decorator that logs how long the decorated function takes.
 
     The duration is measured with :func:`time.perf_counter`, a monotonic clock,
@@ -512,13 +540,14 @@ def log_duration(logger: logging.Logger, level: str = "info"):
                 raise
             finally:
                 duration = time.perf_counter() - start
-                logger.log(
-                    numeric_level, "%s %s %.4f seconds", func.__name__, outcome, duration
-                )
+                logger.log(numeric_level, "%s %s %.4f seconds", func.__name__, outcome, duration)
+
         return wrapper
+
     return decorator
 
-def tqdm_logging(iterable, logger: logging.Logger, level: str = "info"):
+
+def tqdm_logging(iterable, logger: LoggerLike, level: str = "info"):
     """Yield the items of ``iterable`` while reporting progress.
 
     When tqdm is installed a progress bar is shown. Otherwise one
@@ -546,9 +575,10 @@ def tqdm_logging(iterable, logger: logging.Logger, level: str = "info"):
             log("Progress: %d/%d", index, total)
         yield item
 
+
 # Example usage
 if __name__ == "__main__":
-    log = setup_logging(
+    base_logger = setup_logging(
         name=__name__,
         to_console=True,
         to_file=True,
@@ -559,9 +589,9 @@ if __name__ == "__main__":
         level="DEBUG",
         mode="verbose",
         rotation="time",
-        context={"user_id": "test_user"}
+        context={"user_id": "test_user"},
     )
-    log = ContextualLoggerAdapter(log)
+    log = ContextualLoggerAdapter(base_logger)
 
     # Global context set for all following log entries
     set_log_context(user_id="test_user", session_id="abc123", request_id="req-001")
@@ -576,12 +606,13 @@ if __name__ == "__main__":
     log.warning("Warning issued.")
 
     try:
-        1 / 0
+        _ = 1 / 0
     except ZeroDivisionError:
         log_exception(log, "Division by zero error")
 
     @log_duration(log)
     def simulate_work():
+        """Sleep for a second, so there is a duration to log."""
         time.sleep(1)
 
     simulate_work()

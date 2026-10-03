@@ -3,6 +3,8 @@
 import json
 import logging
 
+import pytest
+
 from pylogkit import set_log_context, setup_logging
 
 
@@ -28,6 +30,7 @@ def test_child_logger_records_carry_global_context(capsys):
     assert "[user_id=alice]" in capsys.readouterr().out
 
 
+@pytest.mark.json_logger
 def test_child_logger_records_reach_the_json_file(tmp_path):
     """The JSON handler also sees the context fields for child records."""
     path = tmp_path / "app.json.log"

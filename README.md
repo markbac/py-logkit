@@ -1,5 +1,7 @@
 # pylogkit
 
+[![CI](https://github.com/markbac/py-logkit/actions/workflows/ci.yml/badge.svg)](https://github.com/markbac/py-logkit/actions/workflows/ci.yml)
+
 A small logging toolkit for Python applications. One call to `setup_logging()` gives you
 colourised console output, rotating plain-text and JSON-lines files, and syslog, all
 carrying the same request context (user, session, request, host, environment and process id).
@@ -180,7 +182,12 @@ python -m venv .venv && source .venv/bin/activate
 pip install -e ".[all,dev]"
 pytest                   # run the tests
 pytest --cov             # with coverage (the build fails below 90%)
+ruff check . && ruff format --check .   # lint and formatting
+mypy                     # type checking
 ```
+
+The same checks run in GitHub Actions on every push and pull request, across Python 3.10 to 3.14,
+with and without the optional extras, and with python-json-logger 2.x as well as the latest release.
 
 See [CHANGELOG.md](CHANGELOG.md) for what has changed, and the
 [issue tracker](https://github.com/markbac/py-logkit/issues) for planned work.

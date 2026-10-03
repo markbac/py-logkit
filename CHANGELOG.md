@@ -21,6 +21,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   thread isolation of the context, the `context=` argument, the module demo
   and the behaviour without each optional dependency. Coverage is now 96%, and
   `pytest --cov` fails below 90% (#16).
+- GitHub Actions workflow: ruff lint and format checks, mypy, tests on Python
+  3.10 to 3.14, tests without the optional extras and with python-json-logger
+  2.0.7, and a job that builds the sdist and wheel, runs `twine check` and
+  imports the wheel from a clean environment. Ruff (pycodestyle, pyflakes,
+  isort, pep8-naming, pyupgrade, bugbear and pydocstyle) and mypy are
+  configured in `pyproject.toml` (#17).
 
 ### Changed
 
@@ -50,6 +56,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   "pylogkit[json]"`, `"pylogkit[progress]"` or `"pylogkit[all]"`. Only
   colorlog is installed by default. Use `pip install -e ".[all,dev]"` for
   development (#14).
+- The code is formatted with `ruff format` and annotations use `X | None`.
+  `log_exception()`, `log_duration()` and `tqdm_logging()` are typed to accept
+  a `ContextualLoggerAdapter` as well as a `Logger`. The `ImportError` raised
+  when colorlog is missing now chains the original error (#17).
 
 ### Deprecated
 

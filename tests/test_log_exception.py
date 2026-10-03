@@ -11,7 +11,7 @@ def test_logs_an_error_with_the_traceback(caplog):
 
     with caplog.at_level(logging.ERROR, logger=logger.name):
         try:
-            1 / 0
+            _ = 1 / 0
         except ZeroDivisionError:
             log_exception(logger, "division failed")
 
