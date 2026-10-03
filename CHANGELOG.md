@@ -13,3 +13,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Corrected the dependency name `colourlog` to `colorlog` in `setup.py`,
   `requirements.txt` and the module docstring. The misspelt name pointed at
   a package that does not provide the module the code imports (#2).
+- `tqdm_logging()` no longer yields nothing when tqdm is installed, and the
+  fallback no longer raises `TypeError` for iterables without a length (#3).
