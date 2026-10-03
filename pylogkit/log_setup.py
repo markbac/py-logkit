@@ -378,22 +378,74 @@ def _prepare_log_file(path: str, overwrite: bool) -> None:
         open(path, "w", encoding="utf-8").close()
 
 
+_LOG_FORMATS = ("pretty", "compact", "json", "auto")
+
+
+def _resolve_environment(
+    to_file: bool | None,
+    file_path: str | None,
+    level: str | None,
+    mode: str | None,
+    use_json: bool | None,
+    console_stream: IO[str],
+) -> tuple[bool, str | None, str, str, bool]:
+    """Fill the arguments that were not given from the environment.
+
+    An argument that was passed explicitly (anything but ``None``) always wins
+    over ``LOG_LEVEL``, ``LOG_FORMAT`` and ``LOG_FILE``. ``LOG_FORMAT`` is
+    ignored as soon as ``mode`` or ``use_json`` is given.
+
+    Returns:
+        ``(to_file, file_path, level, mode, use_json)`` with no ``None`` left,
+        except ``file_path``, which stays ``None`` only if it was never set.
+
+    Raises:
+        ValueError: If ``LOG_FORMAT`` is not one of ``pretty``, ``compact``,
+            ``json`` or ``auto``.
+    """
+    env_file = os.environ.get("LOG_FILE") or None
+    if to_file is None:
+        to_file = env_file is not None
+    if file_path is None:
+        file_path = env_file or "app.log"
+    if level is None:
+        level = os.environ.get("LOG_LEVEL") or "INFO"
+
+    if mode is None and use_json is None:
+        log_format = (os.environ.get("LOG_FORMAT") or "pretty").strip().lower()
+        if log_format not in _LOG_FORMATS:
+            raise ValueError(
+                f"LOG_FORMAT must be one of {', '.join(_LOG_FORMATS)}, got {log_format!r}"
+            )
+        if log_format == "auto":
+            log_format = "pretty" if _is_tty(console_stream) else "json"
+        mode = "compact" if log_format == "compact" else "verbose"
+        use_json = log_format == "json"
+    return to_file, file_path, level, mode or "verbose", bool(use_json)
+
+
+def _is_tty(stream: IO[str]) -> bool:
+    """Return whether ``stream`` is an interactive terminal."""
+    isatty = getattr(stream, "isatty", None)
+    return bool(isatty and isatty())
+
+
 def setup_logging(
     name: str | None = None,
     overwrite: bool = False,
     to_console: bool = True,
-    to_file: bool = False,
-    file_path: str | None = "app.log",
+    to_file: bool | None = None,
+    file_path: str | None = None,
     to_json_file: bool = False,
     json_file_path: str | None = "app.json.log",
     to_syslog: bool = False,
-    level: str = "INFO",
+    level: str | None = None,
     console_level: str | None = None,
     file_level: str | None = None,
     json_level: str | None = None,
     syslog_level: str | None = None,
-    mode: str = "verbose",
-    use_json: bool = False,
+    mode: str | None = None,
+    use_json: bool | None = None,
     rotation: str = "size",
     max_bytes: int = 5 * 1024 * 1024,
     backup_count: int = 2,
@@ -415,17 +467,25 @@ def setup_logging(
     from child loggers (``logging.getLogger("name.child")``), whereas handler
     filters see every record the handler emits.
 
+    Arguments left as ``None`` fall back to the environment variables
+    ``LOG_LEVEL``, ``LOG_FORMAT`` and ``LOG_FILE`` (see ``level``, ``mode``,
+    ``use_json``, ``to_file`` and ``file_path``). An explicit argument always
+    overrides the environment.
+
     Args:
         name: Logger name. ``None`` configures the root logger.
         overwrite: Truncate the plain-text and JSON log files when logging is
             set up instead of appending to them.
         to_console: Log to the console (see ``console_stream``).
-        to_file: Log to ``file_path``.
-        file_path: Path of the plain-text log file.
+        to_file: Log to ``file_path``. Defaults to true when the ``LOG_FILE``
+            environment variable is set, otherwise false.
+        file_path: Path of the plain-text log file. Defaults to ``LOG_FILE``,
+            then to ``"app.log"``.
         to_json_file: Log JSON lines to ``json_file_path``.
         json_file_path: Path of the JSON log file.
         to_syslog: Log to syslog (see ``syslog_address``).
-        level: Default level name for every handler.
+        level: Default level name for every handler. Defaults to ``LOG_LEVEL``,
+            then to ``"INFO"``.
         console_level: Console level, defaulting to ``level``.
         file_level: File level, defaulting to ``level``.
         json_level: JSON file level, defaulting to ``level``.
@@ -434,6 +494,10 @@ def setup_logging(
             ``"compact"`` (``[LEVEL] message``) console layout. Ignored when
             ``use_json`` is true.
         use_json: Write JSON lines to the console instead of the text layout.
+            When neither ``mode`` nor ``use_json`` is given, ``LOG_FORMAT``
+            chooses the layout: ``pretty`` (the default), ``compact``,
+            ``json``, or ``auto`` for pretty output on a terminal and JSON
+            otherwise.
         rotation: ``"size"`` or ``"time"`` file rotation.
         max_bytes: Rotation size for size-based rotation.
         backup_count: Number of rotated files to keep.
@@ -459,8 +523,9 @@ def setup_logging(
         The configured :class:`logging.Logger`.
 
     Raises:
-        ImportError: If ``use_json`` or ``to_json_file`` is requested but
-            ``python-json-logger`` is not installed.
+        ImportError: If JSON output is requested but ``python-json-logger`` is
+            not installed.
+        ValueError: If ``LOG_FORMAT`` holds an unknown value.
     """
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)  # set to DEBUG globally; control per handler
@@ -471,6 +536,9 @@ def setup_logging(
         set_log_context(**context)
 
     stream = console_stream if console_stream is not None else sys.stdout
+    to_file, file_path, level, mode, use_json = _resolve_environment(
+        to_file, file_path, level, mode, use_json, stream
+    )
     if use_json:
         formatter = _build_json_formatter()
     elif mode == "compact":
