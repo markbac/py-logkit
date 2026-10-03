@@ -92,8 +92,8 @@ try:  # python-json-logger 3.1 and later
     from pythonjsonlogger.json import JsonFormatter
 except ImportError:
     try:  # python-json-logger 2.x, where the class lives in ``jsonlogger``
-        from pythonjsonlogger.jsonlogger import (
-            JsonFormatter,  # type: ignore[attr-defined,unused-ignore]
+        from pythonjsonlogger.jsonlogger import (  # type: ignore[attr-defined,unused-ignore]
+            JsonFormatter,
         )
     except ImportError:
         JsonFormatter = None  # type: ignore[assignment,misc,unused-ignore]
