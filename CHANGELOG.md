@@ -30,6 +30,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - The package is fully type annotated, ships a PEP 561 `py.typed` marker and
   is checked with `mypy --strict` in CI. A CI step checks that the wheel
   contains the marker (#19).
+- The version is single-sourced in `pylogkit/_version.py` and exposed as
+  `pylogkit.__version__`. A release workflow builds and checks the
+  distribution when a `v*` tag is pushed, verifies that the tag matches the
+  version, and creates a GitHub release. The process is documented in
+  `docs/releasing.md`. Publishing to PyPI is deliberately left out until the
+  distribution name is settled (#20).
 
 ### Changed
 
