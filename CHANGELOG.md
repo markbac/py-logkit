@@ -57,3 +57,5 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `log_duration()` now logs the duration even when the decorated function
   raises (as `... failed after N seconds`) and measures with the monotonic
   `time.perf_counter()` instead of `time.time()` (#9).
+- Plain-text log files no longer end every line with a stray ANSI reset
+  sequence (`\x1b[0m`) appended by colorlog (#36).

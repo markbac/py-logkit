@@ -343,7 +343,7 @@ def setup_logging(name: Optional[str] = None,
         else:
             file_handler = RotatingFileHandler(file_path, maxBytes=max_bytes, backupCount=backup_count, encoding='utf-8')
         file_handler.setLevel((file_level or level).upper())
-        file_formatter = SmartFieldFormatter(FILE_FORMAT, datefmt=DATE_FORMAT)
+        file_formatter = SmartFieldFormatter(FILE_FORMAT, datefmt=DATE_FORMAT, no_color=True)
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
 
