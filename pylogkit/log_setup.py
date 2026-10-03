@@ -101,10 +101,18 @@ class SmartFieldFormatter(colorlog.ColoredFormatter):
         return super().format(record)
 
 class ContextFilter(logging.Filter):
+    """Copy the active log context and a level emoji onto every record.
+
+    Values already present on the record (for example those supplied through
+    ``extra=`` or by :class:`ContextualLoggerAdapter`) take precedence over
+    the global context.
+    """
+
     def filter(self, record):
         context = get_log_context()
         for k, v in context.items():
-            setattr(record, k, v)
+            if not hasattr(record, k):
+                setattr(record, k, v)
         emoji_map = {
             'DEBUG': '🐛',
             'INFO': 'ℹ️',
@@ -122,20 +130,44 @@ class ContextFilter(logging.Filter):
         return True
 
 class ContextualLoggerAdapter(logging.LoggerAdapter):
-    def __init__(self, logger):
-        super().__init__(logger, {})
+    """Logger adapter that attaches context fields to every record.
+
+    Fields come from three layers, lowest precedence first: the global
+    context (:func:`set_log_context`), the adapter's own fields (added with
+    :meth:`with_context`) and any ``extra=`` passed to the logging call.
+
+    Args:
+        logger: The logger to wrap.
+        extra: Optional fields private to this adapter.
+    """
+
+    def __init__(self, logger, extra=None):
+        super().__init__(logger, dict(extra or {}))
 
     def process(self, msg, kwargs):
-        context = get_log_context()
-        kwargs.setdefault("extra", {}).update(context)
+        """Merge the context layers into ``kwargs["extra"]``."""
+        extra = get_log_context()
+        extra.update(self.extra)
+        extra.update(kwargs.get("extra") or {})
+        kwargs["extra"] = extra
         return msg, kwargs
 
     def with_context(self, **context):
-        prev_context = get_log_context().copy()
-        combined_context = prev_context.copy()
-        combined_context.update(context)
-        set_log_context(**combined_context)
-        return self
+        """Return a new adapter with extra fields, leaving this one untouched.
+
+        The global context is not modified, so the fields apply only to
+        records logged through the returned adapter::
+
+            log.with_context(user_id="bob").info("only this line is bob's")
+            log.info("this line is not")
+
+        Args:
+            **context: Fields to add to, or override on, this adapter's fields.
+
+        Returns:
+            A new :class:`ContextualLoggerAdapter` on the same logger.
+        """
+        return ContextualLoggerAdapter(self.logger, {**self.extra, **context})
 
 def setup_logging(name: Optional[str] = None,
                   overwrite: bool = False,
