@@ -265,6 +265,7 @@ mypy                     # strict type checking (the package ships py.typed)
 The same checks run in GitHub Actions on every push and pull request, across Python 3.10 to 3.14,
 with and without the optional extras, and with python-json-logger 2.x as well as the latest release.
 
+How the package is put together is described in [docs/architecture.md](docs/architecture.md).
 See [CHANGELOG.md](CHANGELOG.md) for what has changed, [docs/releasing.md](docs/releasing.md) for the
 release process, and the
 [issue tracker](https://github.com/markbac/py-logkit/issues) for planned work.
