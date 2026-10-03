@@ -9,7 +9,7 @@ Dependencies:
 - tqdm (optional, install via `pip install tqdm`)
 
 Usage:
-from log_setup import setup_logging
+from pylogkit import ContextualLoggerAdapter, setup_logging
 logger = setup_logging(name=__name__, to_console=True, to_file=True, file_path="app.log", level="DEBUG", mode="verbose")
 logger = ContextualLoggerAdapter(logger)
 logger.info("Hello, logging!")
