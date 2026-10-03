@@ -304,12 +304,32 @@ def log_duration(logger: logging.Logger, level: str = "info"):
     return decorator
 
 def tqdm_logging(iterable, logger: logging.Logger, level: str = "info"):
+    """Yield the items of ``iterable`` while reporting progress.
+
+    When tqdm is installed a progress bar is shown. Otherwise one
+    ``Progress: n/total`` message is logged per item (``Progress: n`` if the
+    iterable has no length, for example a generator).
+
+    Args:
+        iterable: Any iterable to loop over.
+        logger: Logger used for the fallback progress messages.
+        level: Name of the logger method used for those messages.
+
+    Yields:
+        The items of ``iterable``, unchanged and in order.
+    """
     if tqdm:
-        return tqdm(iterable)
-    else:
-        for index, item in enumerate(iterable, 1):
-            getattr(logger, level)(f"Progress: {index}/{len(iterable)}")
-            yield item
+        yield from tqdm(iterable)
+        return
+
+    log = getattr(logger, level)
+    total = len(iterable) if hasattr(iterable, "__len__") else None
+    for index, item in enumerate(iterable, 1):
+        if total is None:
+            log("Progress: %d", index)
+        else:
+            log("Progress: %d/%d", index, total)
+        yield item
 
 # Example usage
 if __name__ == "__main__":
