@@ -29,7 +29,7 @@ def test_child_logger_records_carry_global_context(capsys):
 
 
 def test_child_logger_records_reach_the_json_file(tmp_path):
-    """The JSON handler also sees context and emoji for child records."""
+    """The JSON handler also sees the context fields for child records."""
     path = tmp_path / "app.json.log"
     set_log_context(request_id="req-9")
     logger = setup_logging(
@@ -42,4 +42,4 @@ def test_child_logger_records_reach_the_json_file(tmp_path):
 
     record = json.loads(path.read_text().strip())
     assert record["request_id"] == "req-9"
-    assert record["emoji"]
+    assert record["logger"] == "child-json.sub"
