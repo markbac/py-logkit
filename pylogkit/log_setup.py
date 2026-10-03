@@ -83,7 +83,7 @@ except ImportError:
     try:  # python-json-logger 2.x, where the class lives in ``jsonlogger``
         from pythonjsonlogger.jsonlogger import JsonFormatter
     except ImportError:
-        JsonFormatter = None
+        JsonFormatter = None  # type: ignore[assignment,misc,unused-ignore]
 
 try:
     from tqdm import tqdm
