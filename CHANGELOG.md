@@ -51,6 +51,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   and context fields and in message text for every handler, and
   `RedactionFilter` and `DEFAULT_REDACT_KEYS` are exported. Redaction is off
   by default (#24).
+- Architecture documentation in `docs/architecture.md`, with Mermaid diagrams
+  of the package layout, the life of a log record, context layering and the
+  queue path, plus the design decisions behind them. Tests keep it linked,
+  valid and in step with the public API (#56).
 
 ### Changed
 
