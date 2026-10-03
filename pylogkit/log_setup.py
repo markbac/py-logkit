@@ -4,7 +4,7 @@ log_setup.py
 Reusable Python logging setup with colourised output and configurable logging to file and/or console.
 
 Dependencies:
-- colourlog (install via `pip install colourlog`)
+- colorlog (install via `pip install colorlog`)
 - python-json-logger (optional, install via `pip install python-json-logger`)
 - tqdm (optional, install via `pip install tqdm`)
 
