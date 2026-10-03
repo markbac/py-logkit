@@ -1,6 +1,45 @@
 [build-system]
-requires = ["setuptools", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "pylogkit"
+version = "0.1.0"
+description = "A structured and colourised logging toolkit for Python applications"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Mark Bacon" }]
+keywords = ["logging", "structured logging", "json", "colour", "syslog"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: System :: Logging",
+]
+dependencies = ["colorlog>=6.0.0"]
+
+[project.optional-dependencies]
+json = ["python-json-logger>=2.0.7"]
+progress = ["tqdm"]
+all = ["pylogkit[json,progress]"]
+dev = ["pytest>=7", "pytest-cov", "ruff", "mypy", "build"]
+
+[project.urls]
+Homepage = "https://github.com/markbac/py-logkit"
+Issues = "https://github.com/markbac/py-logkit/issues"
+Changelog = "https://github.com/markbac/py-logkit/blob/main/CHANGELOG.md"
+
+[tool.setuptools.packages.find]
+include = ["pylogkit*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

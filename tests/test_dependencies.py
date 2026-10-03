@@ -1,38 +1,38 @@
-"""Tests that declared dependencies are real, installable distributions."""
+"""Tests that declared dependencies are real, installable distributions.
 
-import ast
+These tests read the metadata of the installed ``pylogkit`` distribution, so
+run them in an environment created with ``pip install -e ".[all,dev]"``.
+"""
+
 import importlib.metadata
 import re
-from pathlib import Path
 
-ROOT = Path(__file__).resolve().parent.parent
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*")
 
 
-def _names(requirements):
-    """Return the distribution names from an iterable of requirement strings."""
-    return {NAME.match(line.strip()).group(0).lower() for line in requirements}
+def _requirement_names():
+    """Return the distribution names of every declared requirement."""
+    requires = importlib.metadata.requires("pylogkit") or []
+    return {NAME.match(requirement).group(0) for requirement in requires}
 
 
-def _requirements_txt():
-    lines = (ROOT / "requirements.txt").read_text().splitlines()
-    return [line for line in lines if line.strip() and not line.startswith("#")]
+def test_core_dependency_is_colorlog():
+    """The only mandatory dependency is ``colorlog`` (not the misspelt name)."""
+    core = [
+        r for r in importlib.metadata.requires("pylogkit") if "extra ==" not in r
+    ]
+
+    assert [NAME.match(r).group(0) for r in core] == ["colorlog"]
 
 
-def _setup_py_install_requires():
-    tree = ast.parse((ROOT / "setup.py").read_text())
-    for node in ast.walk(tree):
-        if isinstance(node, ast.keyword) and node.arg == "install_requires":
-            return ast.literal_eval(node.value)
-    raise AssertionError("install_requires not found in setup.py")
+def test_optional_features_are_extras():
+    """JSON output and progress bars are optional extras."""
+    extras = set(importlib.metadata.metadata("pylogkit").get_all("Provides-Extra"))
+
+    assert {"json", "progress", "all", "dev"} <= extras
 
 
 def test_requirements_resolve_to_real_distributions():
     """A misspelt dependency name (for example ``colourlog``) must be caught."""
-    for name in _names(_requirements_txt()):
+    for name in _requirement_names():
         importlib.metadata.distribution(name)
-
-
-def test_setup_py_matches_requirements_txt():
-    """The two dependency lists must not drift apart."""
-    assert _names(_setup_py_install_requires()) == _names(_requirements_txt())

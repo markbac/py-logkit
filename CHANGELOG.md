@@ -35,6 +35,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   terminal, when `NO_COLOR` is set or when `TERM=dumb`. `FORCE_COLOR` turns it
   back on, which CI systems that render ANSI colours can use. Piped output
   therefore no longer contains escape codes (#13).
+- All packaging metadata now lives in `pyproject.toml` (PEP 621), with project
+  URLs, a licence expression, classifiers and a readme. The minimum Python
+  version is raised from 3.7 to 3.10 (#14).
+- python-json-logger and tqdm are now optional extras: `pip install
+  "pylogkit[json]"`, `"pylogkit[progress]"` or `"pylogkit[all]"`. Only
+  colorlog is installed by default. Use `pip install -e ".[all,dev]"` for
+  development (#14).
 
 ### Deprecated
 
@@ -46,6 +53,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - The unused `CompactContextFormatter` class and the unused `json` import
   (#10).
+- `setup.py` and `requirements.txt`, which duplicated `pyproject.toml` (#14).
 
 ### Fixed
 
