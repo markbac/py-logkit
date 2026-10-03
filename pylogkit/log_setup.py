@@ -169,6 +169,19 @@ class ContextualLoggerAdapter(logging.LoggerAdapter):
         """
         return ContextualLoggerAdapter(self.logger, {**self.extra, **context})
 
+def _reset_logger(logger: logging.Logger) -> None:
+    """Remove and close the handlers and context filters ``logger`` has.
+
+    Closing matters for file handlers: dropping them without closing leaks
+    open file descriptors every time logging is reconfigured.
+    """
+    for handler in list(logger.handlers):
+        logger.removeHandler(handler)
+        handler.close()
+    for log_filter in [f for f in logger.filters if isinstance(f, ContextFilter)]:
+        logger.removeFilter(log_filter)
+
+
 def setup_logging(name: Optional[str] = None,
                   overwrite: bool = False,
                   to_console: bool = True,
@@ -187,10 +200,46 @@ def setup_logging(name: Optional[str] = None,
                   rotation: str = "size",
                   max_bytes: int = 5*1024*1024,
                   backup_count: int = 2,
-                  context: Optional[dict] = None) -> logging.Logger:
+                  context: Optional[dict] = None,
+                  propagate: bool = False) -> logging.Logger:
+    """Configure and return a logger with console, file, JSON and syslog output.
+
+    The function is idempotent: calling it again for the same logger replaces
+    the handlers and context filter installed by the previous call (closing
+    the old handlers) instead of adding to them.
+
+    Args:
+        name: Logger name. ``None`` configures the root logger.
+        overwrite: Reserved for truncating log files on start-up.
+        to_console: Log to standard output.
+        to_file: Log to ``file_path``.
+        file_path: Path of the plain-text log file.
+        to_json_file: Log JSON lines to ``json_file_path``.
+        json_file_path: Path of the JSON log file.
+        to_syslog: Log to syslog on ``localhost:514``.
+        level: Default level name for every handler.
+        console_level: Console level, defaulting to ``level``.
+        file_level: File level, defaulting to ``level``.
+        json_level: JSON file level, defaulting to ``level``.
+        syslog_level: Syslog level, defaulting to ``level``.
+        mode: ``"verbose"`` or ``"compact"`` console layout.
+        use_json: Reserved for JSON console output.
+        rotation: ``"size"`` or ``"time"`` file rotation.
+        max_bytes: Rotation size for size-based rotation.
+        backup_count: Number of rotated files to keep.
+        context: Initial global log context (see :func:`set_log_context`).
+        propagate: Whether records also reach the handlers of parent loggers.
+            Defaults to ``False`` because this function installs its own
+            handlers, and propagating would duplicate every record when an
+            ancestor (often the root logger) has handlers too.
+
+    Returns:
+        The configured :class:`logging.Logger`.
+    """
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)  # set to DEBUG globally; control per handler
-    logger.handlers.clear()
+    _reset_logger(logger)
+    logger.propagate = propagate
 
     logger.addFilter(ContextFilter())
     if context:
