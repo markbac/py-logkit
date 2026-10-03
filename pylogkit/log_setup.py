@@ -3,7 +3,8 @@
 :func:`setup_logging` configures console, file, JSON-lines and syslog output
 for a logger. Context fields (user, session, request, host, environment and
 process id) are attached to every record, globally through
-:func:`set_log_context` or per logger through :class:`ContextualLoggerAdapter`.
+:func:`set_log_context` and :func:`log_context`, or per logger through
+:class:`ContextualLoggerAdapter`.
 
 Dependencies:
 
@@ -27,10 +28,11 @@ import logging
 import os
 import socket
 import sys
-import threading
 import time
 import warnings
 from collections.abc import Callable, Iterable, Iterator, Sized
+from contextlib import contextmanager
+from contextvars import ContextVar
 from functools import cache, wraps
 from logging.handlers import RotatingFileHandler, SysLogHandler, TimedRotatingFileHandler
 from typing import IO, TYPE_CHECKING, Any, ParamSpec, TypeVar
@@ -111,17 +113,43 @@ try:
 except ImportError:
     tqdm = None
 
-_log_context = threading.local()
+_log_context: ContextVar[dict[str, Any] | None] = ContextVar("pylogkit_log_context", default=None)
 
 
 def set_log_context(**kwargs: Any) -> None:
-    """Replace the global log context of the current thread with ``kwargs``."""
-    _log_context.data = kwargs
+    """Replace the global log context of the current thread or task with ``kwargs``.
+
+    The context is stored in a :class:`contextvars.ContextVar`, so each thread
+    and each :mod:`asyncio` task sees its own value. A new thread starts with
+    an empty context, and a task starts with a copy of its parent's.
+    """
+    _log_context.set(dict(kwargs))
 
 
 def clear_log_context() -> None:
-    """Remove all fields from the global log context of the current thread."""
-    _log_context.data = {}
+    """Remove all fields from the global log context of the current thread or task."""
+    _log_context.set({})
+
+
+@contextmanager
+def log_context(**kwargs: Any) -> Iterator[None]:
+    """Add ``kwargs`` to the log context for the duration of a ``with`` block.
+
+    Fields are merged over the active context. On exit, including when the
+    block raises, the previous context is restored exactly, so blocks nest and
+    concurrent :mod:`asyncio` tasks do not affect each other::
+
+        with log_context(request_id="abc"):
+            logger.info("handled")  # carries request_id="abc"
+
+    Args:
+        **kwargs: Fields to add to, or override in, the active context.
+    """
+    token = _log_context.set({**(_log_context.get() or {}), **kwargs})
+    try:
+        yield
+    finally:
+        _log_context.reset(token)
 
 
 @cache
@@ -143,7 +171,7 @@ def get_log_context() -> dict[str, Any]:
     every call because they are cheap and may change (for example after a
     ``fork``).
     """
-    context = getattr(_log_context, "data", {}).copy()
+    context = dict(_log_context.get() or {})
     context.setdefault("user_id", "-")
     context.setdefault("session_id", "-")
     context.setdefault("request_id", "-")

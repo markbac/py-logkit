@@ -91,8 +91,8 @@ left out of the text layouts.
 
 Context is applied in three layers. Later layers win:
 
-1. The global context of the current thread: `set_log_context(**fields)`,
-   `clear_log_context()` and `get_log_context()`.
+1. The global context of the current thread or `asyncio` task: `set_log_context(**fields)`,
+   `clear_log_context()`, `get_log_context()` and the `log_context(**fields)` context manager.
 2. The fields of a `ContextualLoggerAdapter`, added with `log.with_context(**fields)`.
    This returns a new adapter and never changes the global context.
 3. `extra={...}` passed to an individual logging call.
@@ -102,6 +102,20 @@ set_log_context(user_id="alice")
 log.with_context(user_id="bob").info("this line is bob's")
 log.info("this line is alice's again")
 log.info("this one is carol's", extra={"user_id": "carol"})
+```
+
+`log_context` adds fields for the length of a `with` block and restores the previous context on
+exit, even when the block raises. The context is held in a `contextvars.ContextVar`, so concurrent
+`asyncio` tasks and threads do not see each other's values:
+
+```python
+from pylogkit import log_context
+
+with log_context(request_id="abc"):
+    log.info("handled")          # carries request_id=abc
+    with log_context(user_id="bob"):
+        log.info("nested")       # carries both
+log.info("outside")              # carries neither
 ```
 
 ## Configuring `setup_logging()`
