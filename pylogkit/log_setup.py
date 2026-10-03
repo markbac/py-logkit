@@ -182,6 +182,28 @@ def _reset_logger(logger: logging.Logger) -> None:
         logger.removeFilter(log_filter)
 
 
+def _build_json_formatter():
+    """Return a JSON formatter, or fail clearly if the library is missing.
+
+    Raises:
+        ImportError: If ``python-json-logger`` is not installed.
+    """
+    if jsonlogger is None:
+        raise ImportError(
+            "JSON output needs 'python-json-logger': pip install python-json-logger"
+        )
+    return jsonlogger.JsonFormatter(json_ensure_ascii=False)
+
+
+def _prepare_log_file(path: str, overwrite: bool) -> None:
+    """Create the parent directory of ``path`` and optionally truncate the file."""
+    directory = os.path.dirname(path)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    if overwrite:
+        open(path, "w", encoding="utf-8").close()
+
+
 def setup_logging(name: Optional[str] = None,
                   overwrite: bool = False,
                   to_console: bool = True,
@@ -210,7 +232,8 @@ def setup_logging(name: Optional[str] = None,
 
     Args:
         name: Logger name. ``None`` configures the root logger.
-        overwrite: Reserved for truncating log files on start-up.
+        overwrite: Truncate the plain-text and JSON log files when logging is
+            set up instead of appending to them.
         to_console: Log to standard output.
         to_file: Log to ``file_path``.
         file_path: Path of the plain-text log file.
@@ -222,8 +245,10 @@ def setup_logging(name: Optional[str] = None,
         file_level: File level, defaulting to ``level``.
         json_level: JSON file level, defaulting to ``level``.
         syslog_level: Syslog level, defaulting to ``level``.
-        mode: ``"verbose"`` or ``"compact"`` console layout.
-        use_json: Reserved for JSON console output.
+        mode: ``"verbose"`` (coloured, with source location and context) or
+            ``"compact"`` (``[LEVEL] message``) console layout. Ignored when
+            ``use_json`` is true.
+        use_json: Write JSON lines to the console instead of the text layout.
         rotation: ``"size"`` or ``"time"`` file rotation.
         max_bytes: Rotation size for size-based rotation.
         backup_count: Number of rotated files to keep.
@@ -235,6 +260,10 @@ def setup_logging(name: Optional[str] = None,
 
     Returns:
         The configured :class:`logging.Logger`.
+
+    Raises:
+        ImportError: If ``use_json`` or ``to_json_file`` is requested but
+            ``python-json-logger`` is not installed.
     """
     logger = logging.getLogger(name)
     logger.setLevel(logging.DEBUG)  # set to DEBUG globally; control per handler
@@ -251,40 +280,8 @@ def setup_logging(name: Optional[str] = None,
 
     log_format_compact = ("[%(levelname)s] %(message)s")
 
-    if jsonlogger:
-        json_formatter = jsonlogger.JsonFormatter(json_ensure_ascii=False)
-        formatter = SmartFieldFormatter(
-            fmt=f"%({COLOUR_TIMESTAMP})s%(asctime)s%(reset)s "
-                "[%(log_color)s%(levelname)s %(emoji)s%(reset)s] "
-                f"[%({COLOUR_MODULE_NAME})s%(name)s%(reset)s] "
-                f"%({COLOUR_FILENAME})s%(filename)s%(reset)s::"
-                f"%({COLOUR_FUNCTION})s%(funcName)s%(reset)s():"
-                f"%({COLOUR_LINENO})s%(lineno)d%(reset)s "
-                f"%({COLOUR_CONTEXT_LABEL})s%(context)s%(reset)s - "
-                "%(log_color)s%(message)s%(reset)s",
-
-            datefmt="%Y-%m-%d %H:%M:%S",
-            log_colors={
-                'DEBUG':    'cyan',
-                'INFO':     'blue',
-                'WARNING':  'yellow',
-                'ERROR':    'red',
-                'CRITICAL': 'bold_red'
-            },
-            secondary_log_colors={
-                'message': {
-                    'DEBUG':    'cyan',
-                    'INFO':     'blue',
-                    'WARNING':  'yellow',
-                    'ERROR':    'red',
-                    'CRITICAL': 'bold_red'
-                }
-            },
-            style='%',
-            reset=True
-        )
-
-
+    if use_json:
+        formatter = _build_json_formatter()
     elif mode == "compact":
         formatter = logging.Formatter(log_format_compact, datefmt="%Y-%m-%d %H:%M:%S")
     else:
@@ -326,28 +323,23 @@ def setup_logging(name: Optional[str] = None,
         logger.addHandler(console_handler)
 
     if to_file and file_path:
-        os.makedirs(os.path.dirname(file_path), exist_ok=True) if os.path.dirname(file_path) else None
+        _prepare_log_file(file_path, overwrite)
         if rotation == "time":
-            mode = 'w' if overwrite else 'a'
             file_handler = TimedRotatingFileHandler(file_path, when="midnight", backupCount=backup_count, encoding='utf-8')
         else:
-            mode = 'w' if overwrite else 'a'
             file_handler = RotatingFileHandler(file_path, maxBytes=max_bytes, backupCount=backup_count, encoding='utf-8')
         file_handler.setLevel((file_level or level).upper())
         file_formatter = SmartFieldFormatter(log_format_verbose, datefmt="%Y-%m-%d %H:%M:%S")
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
 
-    if to_json_file and json_file_path and jsonlogger:
-        if os.path.dirname(json_file_path):
-            os.makedirs(os.path.dirname(json_file_path), exist_ok=True)
-        mode = 'w' if overwrite else 'a'
+    if to_json_file and json_file_path:
+        json_formatter = _build_json_formatter()
+        _prepare_log_file(json_file_path, overwrite)
         json_handler = RotatingFileHandler(json_file_path, maxBytes=max_bytes, backupCount=backup_count, encoding='utf-8')
         json_handler.setLevel((json_level or level).upper())
         json_handler.setFormatter(json_formatter)
         logger.addHandler(json_handler)
-
-
 
     if to_syslog:
         syslog_handler = SysLogHandler(address=("localhost", 514))
