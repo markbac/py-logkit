@@ -20,6 +20,7 @@ from pylogkit.log_setup import (
     set_log_context,
     setup_logging,
     setup_syslog_logger,
+    shutdown_logging,
     tqdm_logging,
 )
 
@@ -34,5 +35,6 @@ __all__ = [
     "set_log_context",
     "setup_logging",
     "setup_syslog_logger",
+    "shutdown_logging",
     "tqdm_logging",
 ]

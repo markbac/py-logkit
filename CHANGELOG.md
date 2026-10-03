@@ -44,6 +44,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `setup_logging()` reads `LOG_LEVEL`, `LOG_FORMAT` (`pretty`, `compact`,
   `json` or `auto`) and `LOG_FILE` when the matching arguments are not passed.
   Explicit arguments always override the environment (#22).
+- `setup_logging(use_queue=True)` hands records to a background thread through
+  a queue, so slow handlers do not block the caller, with `shutdown_logging()`
+  to flush and stop it. It also runs at interpreter exit (#23).
 
 ### Changed
 
