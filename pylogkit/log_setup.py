@@ -27,8 +27,9 @@ import socket
 import sys
 import time
 import threading
+import warnings
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler, SysLogHandler
-from typing import Optional
+from typing import Optional, Tuple, Union
 from functools import lru_cache, wraps
 
 # 🎨 Colour config
@@ -45,6 +46,7 @@ FILE_FORMAT = (
     "[%(filename)s:%(lineno)d %(funcName)s()] %(context)s - %(message)s"
 )
 COMPACT_FORMAT = "[%(levelname)s] %(message)s"
+SYSLOG_FORMAT = "%(name)s[%(process)d]: %(levelname)s %(context)s - %(message)s"
 
 # One colour per level, used for the level name and for the message text.
 _LEVEL_COLOURS = {
@@ -280,7 +282,9 @@ def setup_logging(name: Optional[str] = None,
                   max_bytes: int = 5*1024*1024,
                   backup_count: int = 2,
                   context: Optional[dict] = None,
-                  propagate: bool = False) -> logging.Logger:
+                  propagate: bool = False,
+                  syslog_address: Union[Tuple[str, int], str] = ("localhost", 514),
+                  syslog_facility: int = SysLogHandler.LOG_USER) -> logging.Logger:
     """Configure and return a logger with console, file, JSON and syslog output.
 
     The function is idempotent: calling it again for the same logger replaces
@@ -301,7 +305,7 @@ def setup_logging(name: Optional[str] = None,
         file_path: Path of the plain-text log file.
         to_json_file: Log JSON lines to ``json_file_path``.
         json_file_path: Path of the JSON log file.
-        to_syslog: Log to syslog on ``localhost:514``.
+        to_syslog: Log to syslog (see ``syslog_address``).
         level: Default level name for every handler.
         console_level: Console level, defaulting to ``level``.
         file_level: File level, defaulting to ``level``.
@@ -319,6 +323,10 @@ def setup_logging(name: Optional[str] = None,
             Defaults to ``False`` because this function installs its own
             handlers, and propagating would duplicate every record when an
             ancestor (often the root logger) has handlers too.
+        syslog_address: Syslog server as a ``(host, port)`` tuple (UDP) or the
+            path of a Unix domain socket such as ``"/dev/log"``.
+        syslog_facility: Syslog facility, for example
+            ``logging.handlers.SysLogHandler.LOG_LOCAL0``.
 
     Returns:
         The configured :class:`logging.Logger`.
@@ -368,9 +376,9 @@ def setup_logging(name: Optional[str] = None,
         logger.addHandler(json_handler)
 
     if to_syslog:
-        syslog_handler = SysLogHandler(address=("localhost", 514))
+        syslog_handler = SysLogHandler(address=syslog_address, facility=syslog_facility)
         syslog_handler.setLevel((syslog_level or level).upper())
-        syslog_formatter = logging.Formatter("%(name)s[%(process)d]: %(levelname)s %(message)s")
+        syslog_formatter = SmartFieldFormatter(SYSLOG_FORMAT, no_color=True)
         syslog_handler.setFormatter(syslog_formatter)
         logger.addHandler(syslog_handler)
 
@@ -393,18 +401,25 @@ def setup_syslog_logger(name: str = "myapp",
                         address: tuple = ("localhost", 514)) -> logging.Logger:
     """Return a logger that only writes to syslog at ``address``.
 
+    .. deprecated::
+        Use ``setup_logging(name, to_console=False, to_syslog=True,
+        syslog_address=address)`` instead. This function is a thin wrapper
+        around it and will be removed in a future release.
+
     Args:
         name: Logger name.
         level: Level name for the logger.
         address: ``(host, port)`` of the syslog server.
     """
-    logger = logging.getLogger(name)
-    logger.setLevel(level.upper())
-    handler = SysLogHandler(address=address)
-    formatter = logging.Formatter("%(name)s[%(process)d]: %(levelname)s %(message)s")
-    handler.setFormatter(formatter)
-    logger.addHandler(handler)
-    return logger
+    warnings.warn(
+        "setup_syslog_logger() is deprecated, use "
+        "setup_logging(to_console=False, to_syslog=True, syslog_address=...)",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+    return setup_logging(name=name, to_console=False, to_syslog=True,
+                         level=level, syslog_address=address)
+
 
 def log_duration(logger: logging.Logger, level: str = "info"):
     """Return a decorator that logs how long the decorated function takes.
