@@ -178,7 +178,8 @@ git clone https://github.com/markbac/py-logkit
 cd py-logkit
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[all,dev]"
-pytest
+pytest                   # run the tests
+pytest --cov             # with coverage (the build fails below 90%)
 ```
 
 See [CHANGELOG.md](CHANGELOG.md) for what has changed, and the

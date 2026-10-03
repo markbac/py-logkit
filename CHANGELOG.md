@@ -17,6 +17,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   samples, context fields, a reference table of every `setup_logging()`
   argument, colour and JSON behaviour, helpers and development setup. Tests
   run its examples and check that every argument is documented (#15).
+- Tests for size and time rotation, directory creation, `log_exception`,
+  thread isolation of the context, the `context=` argument, the module demo
+  and the behaviour without each optional dependency. Coverage is now 96%, and
+  `pytest --cov` fails below 90% (#16).
 
 ### Changed
 
