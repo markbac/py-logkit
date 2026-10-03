@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Added
+
+- `setup_logging()` accepts `syslog_address` (a `(host, port)` tuple or a Unix
+  socket path such as `/dev/log`) and `syslog_facility`. Syslog lines now
+  include the context fields (#12).
+
 ### Changed
 
 - `setup_logging()` gains a `propagate` argument that defaults to `False`, so
@@ -23,6 +29,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   classes have docstrings (#10).
 - The host name is looked up once and cached instead of calling
   `socket.gethostname()` for every log record (#11).
+
+### Deprecated
+
+- `setup_syslog_logger()` is deprecated and now delegates to
+  `setup_logging(to_syslog=True, ...)`. It emits a `DeprecationWarning` and
+  will be removed in a future release (#12).
 
 ### Removed
 
