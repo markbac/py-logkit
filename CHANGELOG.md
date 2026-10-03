@@ -11,6 +11,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `setup_logging()` gains a `propagate` argument that defaults to `False`, so
   records are no longer emitted a second time by handlers on ancestor loggers.
   Pass `propagate=True` for the previous behaviour (#5).
+- Requesting JSON output (`use_json=True` or `to_json_file=True`) without
+  python-json-logger installed now raises `ImportError` with an install hint
+  instead of silently doing nothing (#6).
 
 ### Fixed
 
@@ -27,3 +30,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   longer overwrites fields already set on a record (#4).
 - `setup_logging()` is now idempotent: it closes the handlers and removes the
   context filter from a previous call instead of stacking them (#5).
+- `setup_logging()` options are no longer silently ignored: `overwrite`
+  truncates the plain-text and JSON log files, `use_json` writes JSON to the
+  console, and `mode="compact"` works whether or not python-json-logger is
+  installed (#6).
