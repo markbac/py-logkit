@@ -11,7 +11,9 @@ applications can write::
 
 from pylogkit._version import __version__
 from pylogkit.log_setup import (
+    DEFAULT_REDACT_KEYS,
     ContextualLoggerAdapter,
+    RedactionFilter,
     clear_log_context,
     get_log_context,
     log_context,
@@ -25,8 +27,10 @@ from pylogkit.log_setup import (
 )
 
 __all__ = [
-    "__version__",
+    "DEFAULT_REDACT_KEYS",
     "ContextualLoggerAdapter",
+    "RedactionFilter",
+    "__version__",
     "clear_log_context",
     "get_log_context",
     "log_context",

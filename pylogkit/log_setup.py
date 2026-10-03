@@ -29,6 +29,7 @@ import copy
 import logging
 import os
 import queue
+import re
 import socket
 import sys
 import time
@@ -285,6 +286,90 @@ class ContextFilter(logging.Filter):
         return True
 
 
+DEFAULT_REDACT_KEYS: tuple[str, ...] = (
+    "password",
+    "passwd",
+    "secret",
+    "token",
+    "authorization",
+    "api_key",
+    "apikey",
+    "cookie",
+)
+"""Field names worth masking in most applications, for ``redact_keys=``."""
+
+_STANDARD_RECORD_ATTRIBUTES = frozenset(logging.LogRecord("", 0, "", 0, "", (), None).__dict__) | {
+    "message",
+    "asctime",
+    "taskName",
+}
+
+
+class RedactionFilter(logging.Filter):
+    """Mask secrets in a record's extra fields and, optionally, in its message.
+
+    Fields are the attributes added through ``extra=``, a
+    :class:`ContextualLoggerAdapter` or the global context. A field is masked
+    when its name contains any of ``keys``, compared case-insensitively, so
+    ``"token"`` also masks ``access_token``. Dictionaries, lists and tuples
+    inside a field are searched too, on a copy, so the caller's objects are
+    never modified. Masking is idempotent, which makes it safe for a record to
+    pass through the filter once per handler.
+
+    Message text is only touched when ``patterns`` are given. Tracebacks are
+    not searched.
+
+    Args:
+        keys: Field names to mask, for example :data:`DEFAULT_REDACT_KEYS`.
+        patterns: Regular expressions, as strings or compiled patterns, whose
+            matches are replaced by ``mask`` in the message.
+        mask: Replacement text.
+    """
+
+    def __init__(
+        self,
+        keys: Iterable[str] = (),
+        patterns: Iterable[str | re.Pattern[str]] = (),
+        mask: str = "***",
+    ) -> None:
+        """Create the filter."""
+        super().__init__()
+        self._keys = tuple(key.lower() for key in keys)
+        self._patterns = tuple(re.compile(p) if isinstance(p, str) else p for p in patterns)
+        self._mask = mask
+
+    def _is_secret(self, name: object) -> bool:
+        """Return whether a field called ``name`` must be masked."""
+        lowered = str(name).lower()
+        return any(key in lowered for key in self._keys)
+
+    def _clean(self, value: Any) -> Any:
+        """Return ``value`` with secret entries of nested containers masked."""
+        if isinstance(value, dict):
+            return {
+                k: self._mask if self._is_secret(k) else self._clean(v) for k, v in value.items()
+            }
+        if isinstance(value, (list, tuple)):
+            return type(value)(self._clean(v) for v in value)
+        return value
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Mask ``record`` in place and accept it."""
+        if self._patterns:
+            message = record.getMessage()
+            redacted = message
+            for pattern in self._patterns:
+                redacted = pattern.sub(self._mask, redacted)
+            if redacted != message:
+                record.msg = redacted
+                record.args = None
+        for name, value in list(record.__dict__.items()):
+            if name in _STANDARD_RECORD_ATTRIBUTES:
+                continue
+            record.__dict__[name] = self._mask if self._is_secret(name) else self._clean(value)
+        return True
+
+
 class ContextualLoggerAdapter(_AdapterBase):
     """Logger adapter that attaches context fields to every record.
 
@@ -512,6 +597,8 @@ def setup_logging(
     console_stream: IO[str] | None = None,
     use_emoji: bool = True,
     use_queue: bool = False,
+    redact_keys: Iterable[str] | None = None,
+    redact_patterns: Iterable[str | re.Pattern[str]] | None = None,
 ) -> logging.Logger:
     """Configure and return a logger with console, file, JSON and syslog output.
 
@@ -580,6 +667,10 @@ def setup_logging(
             The queue is unbounded. Records are written when the thread gets
             to them, so call :func:`shutdown_logging` to wait for the queue to
             drain. That happens automatically at interpreter exit.
+        redact_keys: Field names to mask in every handler's output, for
+            example :data:`DEFAULT_REDACT_KEYS`. See :class:`RedactionFilter`.
+        redact_patterns: Regular expressions whose matches are masked in the
+            message text.
 
     Returns:
         The configured :class:`logging.Logger`.
@@ -649,29 +740,34 @@ def setup_logging(
         syslog_handler.setFormatter(syslog_formatter)
         handlers.append(syslog_handler)
 
-    context_filter = ContextFilter(use_emoji=use_emoji)
+    filters: list[logging.Filter] = [ContextFilter(use_emoji=use_emoji)]
+    if redact_keys or redact_patterns:
+        filters.append(RedactionFilter(redact_keys or (), redact_patterns or ()))
     if use_queue:
-        _start_queue(logger, handlers, context_filter)
+        _start_queue(logger, handlers, filters)
     else:
         for handler in handlers:
-            handler.addFilter(context_filter)
+            for log_filter in filters:
+                handler.addFilter(log_filter)
             logger.addHandler(handler)
 
     return logger
 
 
 def _start_queue(
-    logger: logging.Logger, handlers: list[logging.Handler], context_filter: ContextFilter
+    logger: logging.Logger, handlers: list[logging.Handler], filters: list[logging.Filter]
 ) -> None:
     """Route ``logger`` through a queue drained by a listener thread owning ``handlers``.
 
-    The context filter runs on the queue handler, that is in the thread that
-    logs, because the listener thread has no access to that thread's context.
+    The filters run on the queue handler, that is in the thread that logs.
+    The listener thread has no access to that thread's context, and secrets
+    are masked before a record is queued.
     """
     global _atexit_registered
     log_queue: queue.SimpleQueue[logging.LogRecord] = queue.SimpleQueue()
     queue_handler = _QueueHandler(log_queue)
-    queue_handler.addFilter(context_filter)
+    for log_filter in filters:
+        queue_handler.addFilter(log_filter)
     listener = QueueListener(log_queue, *handlers, respect_handler_level=True)
     listener.start()
     _listeners[logger.name] = listener
