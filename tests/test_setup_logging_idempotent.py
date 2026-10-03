@@ -6,16 +6,19 @@ from pylogkit import setup_logging
 from pylogkit.log_setup import ContextFilter
 
 
-def _context_filters(logger):
-    return [f for f in logger.filters if isinstance(f, ContextFilter)]
+def _context_filters(obj):
+    return [f for f in obj.filters if isinstance(f, ContextFilter)]
 
 
-def test_repeated_setup_keeps_a_single_context_filter():
-    """Each call used to add another ``ContextFilter``."""
+def test_repeated_setup_keeps_a_single_context_filter_per_handler():
+    """Each call used to add another ``ContextFilter`` to the logger."""
+    setup_logging("idem-filter")
     logger = setup_logging("idem-filter")
-    logger = setup_logging("idem-filter")
 
-    assert len(_context_filters(logger)) == 1
+    assert _context_filters(logger) == []
+    assert logger.handlers
+    for handler in logger.handlers:
+        assert len(_context_filters(handler)) == 1
 
 
 def test_repeated_setup_emits_one_line_per_record(tmp_path):
