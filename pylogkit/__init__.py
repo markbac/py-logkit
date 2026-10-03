@@ -9,6 +9,7 @@ applications can write::
     logger.info("Hello, logging!")
 """
 
+from pylogkit._version import __version__
 from pylogkit.log_setup import (
     ContextualLoggerAdapter,
     clear_log_context,
@@ -22,6 +23,7 @@ from pylogkit.log_setup import (
 )
 
 __all__ = [
+    "__version__",
     "ContextualLoggerAdapter",
     "clear_log_context",
     "get_log_context",
