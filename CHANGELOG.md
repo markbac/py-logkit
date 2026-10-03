@@ -87,3 +87,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `time.perf_counter()` instead of `time.time()` (#9).
 - Plain-text log files no longer end every line with a stray ANSI reset
   sequence (`\x1b[0m`) appended by colorlog (#36).
+- JSON log records now contain `timestamp` (ISO 8601 with UTC offset),
+  `level`, `logger` and `message`, in that order, followed by the context
+  fields. Before, they had only the message and the context. The internal
+  `emoji` and `context` fields no longer leak into JSON, and the output is
+  identical across python-json-logger 2.x and later releases (#42).

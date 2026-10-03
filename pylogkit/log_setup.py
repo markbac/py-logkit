@@ -46,6 +46,13 @@ FILE_FORMAT = (
     "[%(filename)s:%(lineno)d %(funcName)s()] %(context)s - %(message)s"
 )
 COMPACT_FORMAT = "[%(levelname)s] %(message)s"
+JSON_FORMAT = "%(asctime)s %(levelname)s %(name)s %(message)s"
+JSON_DATE_FORMAT = "%Y-%m-%dT%H:%M:%S%z"
+_JSON_FIELD_NAMES = {"asctime": "timestamp", "levelname": "level", "name": "logger"}
+_JSON_LEADING_FIELDS = ("timestamp", "level", "logger", "message")
+# Presentation details of the text formats, and ``taskName`` (new in
+# Python 3.12), which python-json-logger 2.x does not know to skip.
+_JSON_INTERNAL_FIELDS = ("emoji", "context", "taskName")
 SYSLOG_FORMAT = "%(name)s[%(process)d]: %(levelname)s %(context)s - %(message)s"
 
 # One colour per level, used for the level name and for the message text.
@@ -140,7 +147,12 @@ class SmartFieldFormatter(colorlog.ColoredFormatter):
                 dynamic_fields.append(f"[{k}={v}]")
 
         record.context = " ".join(dynamic_fields)
-        return super().format(record)
+        try:
+            return super().format(record)
+        finally:
+            # The record is shared with the other handlers. Leaving the text
+            # layout's helper field behind would leak it into JSON output.
+            del record.context
 
 def _build_console_formatter(stream: Optional[IO] = None):
     """Return the coloured, verbose formatter used for console output.
@@ -253,8 +265,29 @@ def _reset_logger(logger: logging.Logger) -> None:
         handler.close()
 
 
+if JsonFormatter is not None:
+
+    class _PylogkitJsonFormatter(JsonFormatter):
+        """JSON formatter with a stable field set and order.
+
+        python-json-logger 2.x and later versions differ in the order of the
+        fields and in which ones they skip, so both are normalised here.
+        """
+
+        def process_log_record(self, log_record):
+            for key in _JSON_INTERNAL_FIELDS:
+                log_record.pop(key, None)
+            ordered = {k: log_record[k] for k in _JSON_LEADING_FIELDS if k in log_record}
+            ordered.update(log_record)
+            return super().process_log_record(ordered)
+
+
 def _build_json_formatter():
-    """Return a JSON formatter, or fail clearly if the library is missing.
+    """Return the JSON formatter for JSON file and console output.
+
+    Each record has ``timestamp`` (ISO 8601 with UTC offset), ``level``,
+    ``logger`` and ``message``, followed by the context fields and, for
+    exceptions, ``exc_info``.
 
     Raises:
         ImportError: If ``python-json-logger`` is not installed.
@@ -263,7 +296,12 @@ def _build_json_formatter():
         raise ImportError(
             "JSON output needs 'python-json-logger': pip install python-json-logger"
         )
-    return JsonFormatter(json_ensure_ascii=False)
+    return _PylogkitJsonFormatter(
+        JSON_FORMAT,
+        datefmt=JSON_DATE_FORMAT,
+        rename_fields=_JSON_FIELD_NAMES,
+        json_ensure_ascii=False,
+    )
 
 
 def _prepare_log_file(path: str, overwrite: bool) -> None:
