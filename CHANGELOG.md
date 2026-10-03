@@ -17,6 +17,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - `log_duration()` validates `level` when the decorator is created and raises
   `ValueError` for unknown level names, instead of failing with
   `AttributeError` on the first call (#9).
+- Internal tidy-up with no behaviour change: the coloured console formatter is
+  built by one helper, level colours are defined once, format strings and the
+  date format are module constants, and the remaining public functions and
+  classes have docstrings (#10).
+
+### Removed
+
+- The unused `CompactContextFormatter` class and the unused `json` import
+  (#10).
 
 ### Fixed
 

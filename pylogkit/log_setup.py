@@ -1,25 +1,29 @@
-'''
-log_setup.py
--------------
-Reusable Python logging setup with colourised output and configurable logging to file and/or console.
+"""Reusable logging setup with colourised, structured and rotating outputs.
+
+:func:`setup_logging` configures console, file, JSON-lines and syslog output
+for a logger. Context fields (user, session, request, host, environment and
+process id) are attached to every record, globally through
+:func:`set_log_context` or per logger through :class:`ContextualLoggerAdapter`.
 
 Dependencies:
-- colorlog (install via `pip install colorlog`)
-- python-json-logger (optional, install via `pip install python-json-logger`)
-- tqdm (optional, install via `pip install tqdm`)
 
-Usage:
-from pylogkit import ContextualLoggerAdapter, setup_logging
-logger = setup_logging(name=__name__, to_console=True, to_file=True, file_path="app.log", level="DEBUG", mode="verbose")
-logger = ContextualLoggerAdapter(logger)
-logger.info("Hello, logging!")
-logger.with_context(user_id="bob").info("Info with dynamic context")
-'''
+- ``colorlog`` (required)
+- ``python-json-logger`` (optional, needed for JSON output)
+- ``tqdm`` (optional, used by :func:`tqdm_logging`)
+
+Example::
+
+    from pylogkit import ContextualLoggerAdapter, setup_logging
+
+    logger = setup_logging(name=__name__, to_file=True, file_path="app.log", level="DEBUG")
+    logger = ContextualLoggerAdapter(logger)
+    logger.info("Hello, logging!")
+    logger.with_context(user_id="bob").info("Info with dynamic context")
+"""
 
 import logging
 import os
 import sys
-import json
 import time
 import threading
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler, SysLogHandler
@@ -33,6 +37,22 @@ COLOUR_MODULE_NAME = "cyan"
 COLOUR_FILENAME = "green"
 COLOUR_FUNCTION = "purple"
 COLOUR_LINENO = "blue"
+
+DATE_FORMAT = "%Y-%m-%d %H:%M:%S"
+FILE_FORMAT = (
+    "%(asctime)s [%(levelname)s] [%(name)s] "
+    "[%(filename)s:%(lineno)d %(funcName)s()] %(context)s - %(message)s"
+)
+COMPACT_FORMAT = "[%(levelname)s] %(message)s"
+
+# One colour per level, used for the level name and for the message text.
+_LEVEL_COLOURS = {
+    "DEBUG": "cyan",
+    "INFO": "blue",
+    "WARNING": "yellow",
+    "ERROR": "red",
+    "CRITICAL": "bold_red",
+}
 
 try:
     import colorlog
@@ -55,12 +75,20 @@ except ImportError:
 _log_context = threading.local()
 
 def set_log_context(**kwargs):
+    """Replace the global log context of the current thread with ``kwargs``."""
     _log_context.data = kwargs
 
 def clear_log_context():
+    """Remove all fields from the global log context of the current thread."""
     _log_context.data = {}
 
 def get_log_context():
+    """Return a copy of the active context, with defaults filled in.
+
+    Defaults are ``"-"`` for ``user_id``, ``session_id`` and ``request_id``,
+    plus the host name, the ``APP_ENV`` environment variable (``"dev"`` if
+    unset) and the process id.
+    """
     import socket
     context = getattr(_log_context, 'data', {}).copy()
     context.setdefault("user_id", "-")
@@ -71,16 +99,13 @@ def get_log_context():
     context.setdefault("pid", os.getpid())
     return context
 
-class CompactContextFormatter(colorlog.ColoredFormatter):
-    def format(self, record):
-        # Remove any context field that is empty, "-", or None
-        for attr in list(vars(record)):
-            if isinstance(getattr(record, attr), str) and getattr(record, attr).strip() in {"", "-"}:
-                setattr(record, attr, "")
-
-        return super().format(record)
-
 class SmartFieldFormatter(colorlog.ColoredFormatter):
+    """Colour formatter that builds a compact ``%(context)s`` field.
+
+    Only context values that are set (neither empty nor ``"-"``) are shown, as
+    ``[key=value]``, so records without context do not carry placeholder text.
+    """
+
     def format(self, record):
         for key in ["user_id", "session_id", "request_id", "hostname", "env", "pid"]:
             if not hasattr(record, key):
@@ -102,6 +127,25 @@ class SmartFieldFormatter(colorlog.ColoredFormatter):
 
         record.context = " ".join(dynamic_fields)
         return super().format(record)
+
+def _build_console_formatter():
+    """Return the coloured, verbose formatter used for console output."""
+    return SmartFieldFormatter(
+        fmt=f"%({COLOUR_TIMESTAMP})s%(asctime)s%(reset)s "
+            "[%(log_color)s%(levelname)s %(emoji)s%(reset)s] "
+            f"[%({COLOUR_MODULE_NAME})s%(name)s%(reset)s] "
+            f"%({COLOUR_FILENAME})s%(filename)s%(reset)s::"
+            f"%({COLOUR_FUNCTION})s%(funcName)s%(reset)s():"
+            f"%({COLOUR_LINENO})s%(lineno)d%(reset)s "
+            f"%({COLOUR_CONTEXT_LABEL})s%(context)s%(reset)s - "
+            "%(log_color)s%(message)s%(reset)s",
+        datefmt=DATE_FORMAT,
+        log_colors=_LEVEL_COLOURS,
+        secondary_log_colors={"message": _LEVEL_COLOURS},
+        style="%",
+        reset=True,
+    )
+
 
 class ContextFilter(logging.Filter):
     """Copy the active log context and a level emoji onto every record.
@@ -279,47 +323,12 @@ def setup_logging(name: Optional[str] = None,
     if context:
         set_log_context(**context)
 
-    log_format_verbose = (
-        "%(asctime)s [%(levelname)s] [%(name)s] [%(filename)s:%(lineno)d %(funcName)s()] %(context)s - %(message)s"
-    )
-
-    log_format_compact = ("[%(levelname)s] %(message)s")
-
     if use_json:
         formatter = _build_json_formatter()
     elif mode == "compact":
-        formatter = logging.Formatter(log_format_compact, datefmt="%Y-%m-%d %H:%M:%S")
+        formatter = logging.Formatter(COMPACT_FORMAT, datefmt=DATE_FORMAT)
     else:
-        formatter = SmartFieldFormatter(
-            fmt=f"%({COLOUR_TIMESTAMP})s%(asctime)s%(reset)s "
-                "[%(log_color)s%(levelname)s %(emoji)s%(reset)s] "
-                f"[%({COLOUR_MODULE_NAME})s%(name)s%(reset)s] "
-                f"%({COLOUR_FILENAME})s%(filename)s%(reset)s::"
-                f"%({COLOUR_FUNCTION})s%(funcName)s%(reset)s():"
-                f"%({COLOUR_LINENO})s%(lineno)d%(reset)s "
-                f"%({COLOUR_CONTEXT_LABEL})s%(context)s%(reset)s - "
-                "%(log_color)s%(message)s%(reset)s",
-
-            datefmt="%Y-%m-%d %H:%M:%S",
-            log_colors={
-                'DEBUG':    'cyan',
-                'INFO':     'blue',
-                'WARNING':  'yellow',
-                'ERROR':    'red',
-                'CRITICAL': 'bold_red'
-            },
-            secondary_log_colors={
-                'message': {
-                    'DEBUG':    'cyan',
-                    'INFO':     'blue',
-                    'WARNING':  'yellow',
-                    'ERROR':    'red',
-                    'CRITICAL': 'bold_red'
-                }
-            },
-            style='%',
-            reset=True
-        )
+        formatter = _build_console_formatter()
 
     if to_console:
         console_handler = logging.StreamHandler(sys.stdout)
@@ -334,7 +343,7 @@ def setup_logging(name: Optional[str] = None,
         else:
             file_handler = RotatingFileHandler(file_path, maxBytes=max_bytes, backupCount=backup_count, encoding='utf-8')
         file_handler.setLevel((file_level or level).upper())
-        file_formatter = SmartFieldFormatter(log_format_verbose, datefmt="%Y-%m-%d %H:%M:%S")
+        file_formatter = SmartFieldFormatter(FILE_FORMAT, datefmt=DATE_FORMAT)
         file_handler.setFormatter(file_formatter)
         logger.addHandler(file_handler)
 
@@ -360,11 +369,23 @@ def setup_logging(name: Optional[str] = None,
     return logger
 
 def log_exception(logger: logging.Logger, msg: str):
+    """Log ``msg`` at ERROR level with the current exception's traceback.
+
+    Call it from inside an ``except`` block. It is a thin wrapper around
+    :meth:`logging.Logger.exception`.
+    """
     logger.exception(msg)
 
 def setup_syslog_logger(name: str = "myapp",
                         level: str = "INFO",
                         address: tuple = ("localhost", 514)) -> logging.Logger:
+    """Return a logger that only writes to syslog at ``address``.
+
+    Args:
+        name: Logger name.
+        level: Level name for the logger.
+        address: ``(host, port)`` of the syslog server.
+    """
     logger = logging.getLogger(name)
     logger.setLevel(level.upper())
     handler = SysLogHandler(address=address)
