@@ -7,6 +7,8 @@ run them in an environment created with ``pip install -e ".[all,dev]"``.
 import importlib.metadata
 import re
 
+import pytest
+
 NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*")
 
 
@@ -18,9 +20,7 @@ def _requirement_names():
 
 def test_core_dependency_is_colorlog():
     """The only mandatory dependency is ``colorlog`` (not the misspelt name)."""
-    core = [
-        r for r in importlib.metadata.requires("pylogkit") if "extra ==" not in r
-    ]
+    core = [r for r in importlib.metadata.requires("pylogkit") if "extra ==" not in r]
 
     assert [NAME.match(r).group(0) for r in core] == ["colorlog"]
 
@@ -32,6 +32,7 @@ def test_optional_features_are_extras():
     assert {"json", "progress", "all", "dev"} <= extras
 
 
+@pytest.mark.extras
 def test_requirements_resolve_to_real_distributions():
     """A misspelt dependency name (for example ``colourlog``) must be caught."""
     for name in _requirement_names():

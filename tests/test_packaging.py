@@ -2,14 +2,12 @@
 
 from pathlib import Path
 
-from setuptools import find_packages
-
 ROOT = Path(__file__).resolve().parent.parent
 
 
-def test_find_packages_discovers_pylogkit():
-    """``find_packages`` must see ``pylogkit`` or built wheels ship no code."""
-    assert "pylogkit" in find_packages(where=str(ROOT))
+def test_package_directory_is_a_regular_package():
+    """Without ``__init__.py`` build tools discover no package and ship no code."""
+    assert (ROOT / "pylogkit" / "__init__.py").is_file()
 
 
 def test_public_api_is_exported():

@@ -25,9 +25,7 @@ def test_repeated_setup_emits_one_line_per_record(tmp_path):
     """Two calls must not write each record twice to the same file."""
     path = tmp_path / "app.log"
     setup_logging("idem-lines", to_console=False, to_file=True, file_path=str(path))
-    logger = setup_logging(
-        "idem-lines", to_console=False, to_file=True, file_path=str(path)
-    )
+    logger = setup_logging("idem-lines", to_console=False, to_file=True, file_path=str(path))
 
     logger.info("once")
     for handler in logger.handlers:
@@ -39,9 +37,7 @@ def test_repeated_setup_emits_one_line_per_record(tmp_path):
 def test_previous_handlers_are_closed(tmp_path):
     """Dropped file handlers must release their file descriptors."""
     path = tmp_path / "app.log"
-    first = setup_logging(
-        "idem-close", to_console=False, to_file=True, file_path=str(path)
-    )
+    first = setup_logging("idem-close", to_console=False, to_file=True, file_path=str(path))
     old_handler = first.handlers[0]
     assert old_handler.stream is not None
 

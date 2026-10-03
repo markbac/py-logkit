@@ -3,7 +3,11 @@
 import runpy
 import time
 
+import pytest
+
 from pylogkit import log_setup
+
+pytestmark = pytest.mark.json_logger
 
 
 def test_module_demo_runs_and_writes_its_log_files(tmp_path, monkeypatch, capsys):

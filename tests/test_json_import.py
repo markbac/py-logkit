@@ -19,11 +19,13 @@ def test_import_emits_no_deprecation_warning():
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.json_logger
 def test_json_formatter_is_resolved():
     """python-json-logger is a declared dependency, so the class must resolve."""
     assert log_setup.JsonFormatter is not None
 
 
+@pytest.mark.json_logger
 def test_build_json_formatter_returns_a_logging_formatter():
     """The helper returns an instance usable as a handler formatter."""
     formatter = log_setup._build_json_formatter()

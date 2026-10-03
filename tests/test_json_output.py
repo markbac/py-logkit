@@ -3,7 +3,11 @@
 import json
 from datetime import datetime
 
+import pytest
+
 from pylogkit import log_setup, set_log_context, setup_logging
+
+pytestmark = pytest.mark.json_logger
 
 
 def _json_lines(path, logger):
@@ -77,7 +81,7 @@ def test_exceptions_are_included(tmp_path):
     )
 
     try:
-        1 / 0
+        _ = 1 / 0
     except ZeroDivisionError:
         logger.exception("failed")
 

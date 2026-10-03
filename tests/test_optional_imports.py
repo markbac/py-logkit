@@ -41,6 +41,7 @@ def test_json_logger_is_optional():
     assert result.returncode == 0, result.stderr
 
 
+@pytest.mark.json_logger
 def test_old_json_logger_import_path_is_used_as_a_fallback():
     """If ``pythonjsonlogger.json`` is unavailable the 2.x module is used.
 

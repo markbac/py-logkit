@@ -12,6 +12,7 @@ def _flush(logger):
         handler.flush()
 
 
+@pytest.mark.json_logger
 def test_overwrite_truncates_existing_files(tmp_path):
     """``overwrite=True`` starts the plain-text and JSON files afresh."""
     plain = tmp_path / "app.log"
@@ -40,9 +41,7 @@ def test_append_is_the_default(tmp_path):
     plain = tmp_path / "app.log"
     plain.write_text("kept\n")
 
-    logger = setup_logging(
-        "opt-append", to_console=False, to_file=True, file_path=str(plain)
-    )
+    logger = setup_logging("opt-append", to_console=False, to_file=True, file_path=str(plain))
     logger.info("added")
     _flush(logger)
 
@@ -50,6 +49,7 @@ def test_append_is_the_default(tmp_path):
     assert "added" in plain.read_text()
 
 
+@pytest.mark.json_logger
 def test_use_json_writes_json_to_the_console(capsys):
     """``use_json`` used to be accepted and ignored."""
     logger = setup_logging("opt-json-console", use_json=True)
@@ -60,6 +60,7 @@ def test_use_json_writes_json_to_the_console(capsys):
     assert record["message"] == "hello"
 
 
+@pytest.mark.json_logger
 def test_compact_mode_is_honoured_with_json_library_installed(capsys):
     """The JSON library being importable must not override ``mode``."""
     assert log_setup.JsonFormatter is not None
@@ -70,6 +71,7 @@ def test_compact_mode_is_honoured_with_json_library_installed(capsys):
     assert capsys.readouterr().out.strip() == "[INFO] hello"
 
 
+@pytest.mark.json_logger
 def test_json_file_contains_valid_json_lines(tmp_path):
     """The JSON file handler writes one JSON object per record."""
     path = tmp_path / "app.json.log"

@@ -4,6 +4,8 @@ import inspect
 import re
 from pathlib import Path
 
+import pytest
+
 from pylogkit import setup_logging
 
 README = (Path(__file__).resolve().parent.parent / "README.md").read_text()
@@ -13,6 +15,7 @@ def _python_blocks():
     return re.findall(r"```python\n(.*?)```", README, re.S)
 
 
+@pytest.mark.json_logger
 def test_quick_start_and_context_examples_run(tmp_path, monkeypatch):
     """The first two Python examples are complete programs and must work."""
     monkeypatch.chdir(tmp_path)

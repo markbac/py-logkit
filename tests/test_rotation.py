@@ -56,9 +56,7 @@ def test_parent_directories_are_created(tmp_path):
     """Log files may live in directories that do not exist yet."""
     path = tmp_path / "deep" / "er" / "app.log"
 
-    logger = setup_logging(
-        "rot-dirs", to_console=False, to_file=True, file_path=str(path)
-    )
+    logger = setup_logging("rot-dirs", to_console=False, to_file=True, file_path=str(path))
     logger.info("hello")
     for handler in logger.handlers:
         handler.flush()

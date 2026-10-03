@@ -41,9 +41,7 @@ def test_file_log_contains_context_and_message(tmp_path):
     """The plain-text file layout includes the context field and the message."""
     path = tmp_path / "app.log"
     set_log_context(user_id="bob")
-    logger = setup_logging(
-        "fmt-file", to_console=False, to_file=True, file_path=str(path)
-    )
+    logger = setup_logging("fmt-file", to_console=False, to_file=True, file_path=str(path))
 
     logger.info("hello")
     for handler in logger.handlers:
@@ -62,9 +60,7 @@ def test_file_format_constant_includes_source_location():
 def test_file_log_has_no_ansi_escape_codes(tmp_path):
     """colorlog appends a reset code unless colour is disabled for files."""
     path = tmp_path / "app.log"
-    logger = setup_logging(
-        "fmt-no-ansi", to_console=False, to_file=True, file_path=str(path)
-    )
+    logger = setup_logging("fmt-no-ansi", to_console=False, to_file=True, file_path=str(path))
 
     logger.info("hello")
     logger.error("boom")
