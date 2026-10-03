@@ -38,6 +38,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   distribution name is settled (#20).
 - `setup_logging(use_emoji=...)` turns the level emoji in the verbose console
   layout off (#25).
+- `log_context(**fields)` is a context manager that adds fields to the log
+  context for a `with` block and restores the previous context on exit,
+  including on exceptions (#21).
 
 ### Changed
 
@@ -71,6 +74,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `log_exception()`, `log_duration()` and `tqdm_logging()` are typed to accept
   a `ContextualLoggerAdapter` as well as a `Logger`. The `ImportError` raised
   when colorlog is missing now chains the original error (#17).
+- The global log context is held in a `contextvars.ContextVar` instead of
+  `threading.local`, so it follows `asyncio` tasks as well as threads. A new
+  thread still starts with an empty context (#21).
 
 ### Deprecated
 
