@@ -115,6 +115,7 @@ log.info("this one is carol's", extra={"user_id": "carol"})
 | `to_console` | `True` | Log to the console. |
 | `console_level` | `None` | Console level, defaulting to `level`. |
 | `console_stream` | `None` | Console stream, for example `sys.stderr`. Defaults to `sys.stdout`. |
+| `use_emoji` | `True` | Show a level emoji in the verbose console layout. Set `False` for terminals that render emoji badly. |
 | `mode` | `"verbose"` | Console layout: `"verbose"` (coloured, with source location and context) or `"compact"` (`[LEVEL] message`). |
 | `use_json` | `False` | Write JSON lines to the console instead. Needs the `json` extra. |
 | `to_file` | `False` | Log to `file_path`. |

@@ -36,6 +36,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   version, and creates a GitHub release. The process is documented in
   `docs/releasing.md`. Publishing to PyPI is deliberately left out until the
   distribution name is settled (#20).
+- `setup_logging(use_emoji=...)` turns the level emoji in the verbose console
+  layout off (#25).
 
 ### Changed
 
@@ -119,3 +121,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   fields. Before, they had only the message and the context. The internal
   `emoji` and `context` fields no longer leak into JSON, and the output is
   identical across python-json-logger 2.x and later releases (#42).
+- The emoji map listed levels that are never registered (`SYSTEM`, `SECURITY`,
+  `NETWORK`, `DATABASE`, `STARTUP`, `SHUTDOWN`) and could never match, so they
+  were removed. The level name is no longer followed by a stray space when a
+  level has no emoji (#25).

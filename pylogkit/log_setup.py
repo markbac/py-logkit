@@ -75,6 +75,14 @@ _JSON_INTERNAL_FIELDS = ("emoji", "context", "taskName")
 SYSLOG_FORMAT = "%(name)s[%(process)d]: %(levelname)s %(context)s - %(message)s"
 
 # One colour per level, used for the level name and for the message text.
+_LEVEL_EMOJI = {
+    "DEBUG": "🐛",
+    "INFO": "ℹ️",
+    "WARNING": "⚠️",
+    "ERROR": "❌",
+    "CRITICAL": "💥",
+}
+
 _LEVEL_COLOURS = {
     "DEBUG": "cyan",
     "INFO": "blue",
@@ -191,7 +199,7 @@ def _build_console_formatter(stream: IO[str] | None = None) -> SmartFieldFormatt
     """
     return SmartFieldFormatter(
         fmt=f"%({COLOUR_TIMESTAMP})s%(asctime)s%(reset)s "
-        "[%(log_color)s%(levelname)s %(emoji)s%(reset)s] "
+        "[%(log_color)s%(levelname)s%(emoji)s%(reset)s] "
         f"[%({COLOUR_MODULE_NAME})s%(name)s%(reset)s] "
         f"%({COLOUR_FILENAME})s%(filename)s%(reset)s::"
         f"%({COLOUR_FUNCTION})s%(funcName)s%(reset)s():"
@@ -214,7 +222,17 @@ class ContextFilter(logging.Filter):
     Values already present on the record (for example those supplied through
     ``extra=`` or by :class:`ContextualLoggerAdapter`) take precedence over
     the global context.
+
+    Args:
+        use_emoji: Set ``record.emoji`` to the level's emoji (preceded by a
+            space, so that it lines up after the level name). When false the
+            field is empty.
     """
+
+    def __init__(self, use_emoji: bool = True) -> None:
+        """Create the filter, optionally without level emoji."""
+        super().__init__()
+        self._use_emoji = use_emoji
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Add the context fields and emoji to ``record`` and accept it."""
@@ -222,20 +240,11 @@ class ContextFilter(logging.Filter):
         for k, v in context.items():
             if not hasattr(record, k):
                 setattr(record, k, v)
-        emoji_map = {
-            "DEBUG": "🐛",
-            "INFO": "ℹ️",
-            "WARNING": "⚠️",
-            "ERROR": "❌",
-            "CRITICAL": "💥",
-            "SYSTEM": "🖥️",
-            "SECURITY": "🔐",
-            "NETWORK": "🌐",
-            "DATABASE": "🗄️",
-            "STARTUP": "🚀",
-            "SHUTDOWN": "🛑",
-        }
-        record.emoji = emoji_map.get(record.levelname, "")
+        record.emoji = (
+            f" {_LEVEL_EMOJI[record.levelname]}"
+            if self._use_emoji and record.levelname in _LEVEL_EMOJI
+            else ""
+        )
         return True
 
 
@@ -365,6 +374,7 @@ def setup_logging(
     syslog_address: tuple[str, int] | str = ("localhost", 514),
     syslog_facility: int = SysLogHandler.LOG_USER,
     console_stream: IO[str] | None = None,
+    use_emoji: bool = True,
 ) -> logging.Logger:
     """Configure and return a logger with console, file, JSON and syslog output.
 
@@ -413,6 +423,9 @@ def setup_logging(
             Console colour is disabled when the stream is not a terminal, when
             ``NO_COLOR`` is set or ``TERM`` is ``dumb``, unless ``FORCE_COLOR``
             is set.
+        use_emoji: Show a level emoji after the level name in the verbose
+            console layout. Set it to false for terminals and log viewers
+            that render emoji badly.
 
     Returns:
         The configured :class:`logging.Logger`.
@@ -476,7 +489,7 @@ def setup_logging(
         syslog_handler.setFormatter(syslog_formatter)
         logger.addHandler(syslog_handler)
 
-    context_filter = ContextFilter()
+    context_filter = ContextFilter(use_emoji=use_emoji)
     for handler in logger.handlers:
         handler.addFilter(context_filter)
 
