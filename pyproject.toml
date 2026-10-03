@@ -43,3 +43,11 @@ include = ["pylogkit*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["pylogkit"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 90

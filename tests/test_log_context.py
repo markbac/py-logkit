@@ -50,3 +50,32 @@ def test_explicit_context_overrides_defaults():
 
     assert context["user_id"] == "alice"
     assert context["hostname"] == "custom"
+
+
+def test_context_is_isolated_between_threads():
+    """A thread must not see, or change, another thread's context."""
+    import threading
+
+    set_log_context(user_id="main")
+    seen = {}
+
+    def worker():
+        seen["before"] = get_log_context()["user_id"]
+        set_log_context(user_id="worker")
+        seen["after"] = get_log_context()["user_id"]
+
+    thread = threading.Thread(target=worker)
+    thread.start()
+    thread.join()
+
+    assert seen == {"before": "-", "after": "worker"}
+    assert get_log_context()["user_id"] == "main"
+
+
+def test_context_argument_of_setup_logging_sets_the_global_context():
+    """``setup_logging(context=...)`` seeds the context for later records."""
+    from pylogkit import setup_logging
+
+    setup_logging("ctx-arg", to_console=False, context={"user_id": "seeded"})
+
+    assert get_log_context()["user_id"] == "seeded"
