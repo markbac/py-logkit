@@ -13,6 +13,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   include the context fields (#12).
 - `setup_logging(console_stream=...)` selects the console stream, for example
   `sys.stderr`. The default is still `sys.stdout` (#13).
+- A full README: rationale, installation, quick start with real output
+  samples, context fields, a reference table of every `setup_logging()`
+  argument, colour and JSON behaviour, helpers and development setup. Tests
+  run its examples and check that every argument is documented (#15).
 
 ### Changed
 
