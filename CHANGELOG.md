@@ -38,3 +38,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   with `ValueError: Formatting field not found in record: 'emoji'`.
   `ContextFilter` is now attached to each handler instead of the logger, so
   every record a handler emits gets the context fields and level emoji (#7).
+- python-json-logger is now imported from `pythonjsonlogger.json` (3.1 and
+  later), falling back to `pythonjsonlogger.jsonlogger` for 2.x. Importing
+  `pylogkit` no longer triggers a `DeprecationWarning` with current releases
+  (#8).
