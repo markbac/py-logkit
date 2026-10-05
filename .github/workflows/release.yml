@@ -1,5 +1,9 @@
 name: Release
 
+# Pushing a tag such as v0.2.0 builds the package, creates the GitHub release and publishes to PyPI.
+# Publishing uses PyPI trusted publishing (no token): on pypi.org add a publisher for project
+# `ctxlogkit` with owner `markbac`, repository `py-logkit`, workflow `release.yml`, environment `pypi`.
+
 on:
   push:
     tags: ["v*"]
@@ -8,11 +12,9 @@ permissions:
   contents: read
 
 jobs:
-  release:
-    name: Build and create the GitHub release
+  build:
+    name: Build the package
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -28,7 +30,40 @@ jobs:
       - run: python -m pip install build twine
       - run: python -m build
       - run: twine check dist/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  release:
+    name: Create the GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" dist/* --generate-notes --title "$GITHUB_REF_NAME"
+
+  publish:
+    name: Publish to PyPI
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/ctxlogkit
+    permissions:
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
