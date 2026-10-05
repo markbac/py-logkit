@@ -5,13 +5,13 @@ import sys
 
 import pytest
 
-from pylogkit import log_setup
+from ctxlogkit import log_setup
 
 
 def test_import_emits_no_deprecation_warning():
     """The deprecated ``pythonjsonlogger.jsonlogger`` path must not be used."""
     result = subprocess.run(
-        [sys.executable, "-W", "error::DeprecationWarning", "-c", "import pylogkit"],
+        [sys.executable, "-W", "error::DeprecationWarning", "-c", "import ctxlogkit"],
         capture_output=True,
         text=True,
     )

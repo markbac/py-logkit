@@ -25,11 +25,11 @@ def test_mermaid_diagrams_are_present_and_avoid_semicolons():
 
 def test_architecture_names_the_public_api():
     """Every exported name is mentioned, so new exports force a documentation update."""
-    import pylogkit
+    import ctxlogkit
 
     text = ARCHITECTURE.read_text(encoding="utf-8")
 
-    missing = [name for name in pylogkit.__all__ if name not in text]
+    missing = [name for name in ctxlogkit.__all__ if name not in text]
     assert not missing, missing
 
 

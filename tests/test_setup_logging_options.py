@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from pylogkit import log_setup, setup_logging
+from ctxlogkit import log_setup, setup_logging
 
 
 def _flush(logger):

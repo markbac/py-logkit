@@ -1,11 +1,11 @@
-"""Smoke test for the example in ``python -m pylogkit.log_setup``."""
+"""Smoke test for the example in ``python -m ctxlogkit.log_setup``."""
 
 import runpy
 import time
 
 import pytest
 
-from pylogkit import log_setup
+from ctxlogkit import log_setup
 
 pytestmark = pytest.mark.json_logger
 

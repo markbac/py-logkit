@@ -22,7 +22,7 @@ def test_tqdm_is_optional():
     """Without tqdm the module still imports and ``tqdm`` is ``None``."""
     result = _run(
         "import sys; sys.modules['tqdm'] = None\n"
-        "from pylogkit import log_setup\n"
+        "from ctxlogkit import log_setup\n"
         "assert log_setup.tqdm is None"
     )
 
@@ -34,7 +34,7 @@ def test_json_logger_is_optional():
     result = _run(
         "import sys\n"
         "sys.modules['pythonjsonlogger'] = None\n"
-        "from pylogkit import log_setup\n"
+        "from ctxlogkit import log_setup\n"
         "assert log_setup.JsonFormatter is None"
     )
 
@@ -55,7 +55,7 @@ def test_old_json_logger_import_path_is_used_as_a_fallback():
         "fake.JsonFormatter = JsonFormatter\n"
         "sys.modules['pythonjsonlogger.json'] = None\n"
         "sys.modules['pythonjsonlogger.jsonlogger'] = fake\n"
-        "from pylogkit import log_setup\n"
+        "from ctxlogkit import log_setup\n"
         "assert log_setup.JsonFormatter is JsonFormatter"
     )
 
@@ -64,13 +64,13 @@ def test_old_json_logger_import_path_is_used_as_a_fallback():
 
 def test_colorlog_is_required_and_the_error_says_how_to_install_it():
     """The one mandatory dependency fails with an actionable message."""
-    result = _run("import sys; sys.modules['colorlog'] = None\nimport pylogkit")
+    result = _run("import sys; sys.modules['colorlog'] = None\nimport ctxlogkit")
 
     assert result.returncode != 0
     assert "pip install colorlog" in result.stderr
 
 
-@pytest.mark.parametrize("module", ["pylogkit", "pylogkit.log_setup"])
+@pytest.mark.parametrize("module", ["ctxlogkit", "ctxlogkit.log_setup"])
 def test_modules_import_cleanly(module):
     """Plain imports must not print anything or emit warnings."""
     result = subprocess.run(

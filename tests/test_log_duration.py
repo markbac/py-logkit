@@ -1,11 +1,11 @@
-"""Tests for :func:`pylogkit.log_setup.log_duration`."""
+"""Tests for :func:`ctxlogkit.log_setup.log_duration`."""
 
 import itertools
 import logging
 
 import pytest
 
-from pylogkit import log_duration, log_setup
+from ctxlogkit import log_duration, log_setup
 
 LOGGER = logging.getLogger("duration-test")
 

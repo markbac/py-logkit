@@ -2,7 +2,7 @@
 
 import logging
 
-from pylogkit import log_setup, setup_logging
+from ctxlogkit import log_setup, setup_logging
 
 STANDARD_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 

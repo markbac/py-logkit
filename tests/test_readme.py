@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from pylogkit import setup_logging
+from ctxlogkit import setup_logging
 
 README = (Path(__file__).resolve().parent.parent / "README.md").read_text()
 

@@ -1,6 +1,6 @@
-"""Tests for :class:`pylogkit.log_setup.ContextualLoggerAdapter`."""
+"""Tests for :class:`ctxlogkit.log_setup.ContextualLoggerAdapter`."""
 
-from pylogkit import (
+from ctxlogkit import (
     ContextualLoggerAdapter,
     get_log_context,
     set_log_context,

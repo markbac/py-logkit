@@ -1,4 +1,4 @@
-# pylogkit
+# ctxlogkit
 
 [![CI](https://github.com/markbac/py-logkit/actions/workflows/ci.yml/badge.svg)](https://github.com/markbac/py-logkit/actions/workflows/ci.yml)
 
@@ -9,7 +9,7 @@ carrying the same request context (user, session, request, host, environment and
 It builds on the standard `logging` module and [`colorlog`](https://pypi.org/project/colorlog/),
 so everything it returns is an ordinary `logging.Logger`.
 
-## Why pylogkit
+## Why ctxlogkit
 
 - **One call, sensible defaults.** Console, file, JSON and syslog handlers with their own
   levels, formats and rotation, configured by keyword arguments.
@@ -24,12 +24,13 @@ so everything it returns is an ordinary `logging.Logger`.
 
 Requires Python 3.10 or later. The only mandatory dependency is `colorlog`.
 
-> **Warning:** The name `pylogkit` on PyPI belongs to a different, unrelated project, so
-> `pip install pylogkit` does **not** install this library. Install it from this repository
-> instead (see the naming discussion in [#44](https://github.com/markbac/py-logkit/issues/44)).
+> **Note:** This project was previously called `pylogkit`. That name on PyPI belongs to a
+> different, unrelated project, so the distribution and the import package are now `ctxlogkit`
+> (see [#44](https://github.com/markbac/py-logkit/issues/44)). It is not on PyPI yet, so install it
+> from this repository:
 
 ```bash
-pip install "pylogkit[all] @ git+https://github.com/markbac/py-logkit"
+pip install "ctxlogkit[all] @ git+https://github.com/markbac/py-logkit"
 ```
 
 or from a clone:
@@ -44,7 +45,7 @@ pip install ".[all]"       # everything optional
 ## Quick start
 
 ```python
-from pylogkit import ContextualLoggerAdapter, set_log_context, setup_logging
+from ctxlogkit import ContextualLoggerAdapter, set_log_context, setup_logging
 
 logger = setup_logging(
     name="shop.checkout",
@@ -109,7 +110,7 @@ exit, even when the block raises. The context is held in a `contextvars.ContextV
 `asyncio` tasks and threads do not see each other's values:
 
 ```python
-from pylogkit import log_context
+from ctxlogkit import log_context
 
 with log_context(request_id="abc"):
     log.info("handled")          # carries request_id=abc
@@ -168,7 +169,7 @@ Pass `redact_keys` to mask the value of any field whose name contains one of the
 syslog, and are off unless you ask for them.
 
 ```python
-from pylogkit import DEFAULT_REDACT_KEYS, setup_logging
+from ctxlogkit import DEFAULT_REDACT_KEYS, setup_logging
 
 logger = setup_logging(
     "app",
@@ -192,7 +193,7 @@ only puts the record on an in-memory queue, and a background thread owns the rea
 writes it. The context fields are captured on the calling thread, so they are still correct.
 
 ```python
-from pylogkit import setup_logging, shutdown_logging
+from ctxlogkit import setup_logging, shutdown_logging
 
 logger = setup_logging("app", to_file=True, use_queue=True)
 logger.info("returns without waiting for the file")
@@ -234,7 +235,7 @@ Each JSON record starts with `timestamp` (ISO 8601 with UTC offset), `level`, `l
 ## Helpers
 
 ```python
-from pylogkit import log_duration, log_exception, tqdm_logging
+from ctxlogkit import log_duration, log_exception, tqdm_logging
 
 @log_duration(logger, level="debug")
 def import_orders():

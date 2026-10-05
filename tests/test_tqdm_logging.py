@@ -1,11 +1,11 @@
-"""Tests for :func:`pylogkit.log_setup.tqdm_logging`."""
+"""Tests for :func:`ctxlogkit.log_setup.tqdm_logging`."""
 
 import logging
 
 import pytest
 
-from pylogkit import log_setup
-from pylogkit.log_setup import tqdm_logging
+from ctxlogkit import log_setup
+from ctxlogkit.log_setup import tqdm_logging
 
 LOGGER = logging.getLogger("tqdm-test")
 

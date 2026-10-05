@@ -1,8 +1,8 @@
-"""Tests for :func:`pylogkit.log_setup.log_exception`."""
+"""Tests for :func:`ctxlogkit.log_setup.log_exception`."""
 
 import logging
 
-from pylogkit import log_exception
+from ctxlogkit import log_exception
 
 
 def test_logs_an_error_with_the_traceback(caplog):
