@@ -17,13 +17,18 @@ Releases follow [Semantic Versioning](https://semver.org/). The version lives in
     ```
 
 Pushing a `v*` tag runs `.github/workflows/release.yml`. It checks that the tag matches
-`__version__`, builds the sdist and wheel, runs `twine check`, and attaches both to a GitHub release
-whose notes are generated from the merged pull requests.
+`__version__`, builds the sdist and wheel, runs `twine check`, attaches both to a GitHub release
+whose notes are generated from the merged pull requests, and publishes them to PyPI.
 
 ## Publishing to PyPI
 
-The workflow does not publish to PyPI yet. The name `ctxlogkit` was checked and was free when the project
-was renamed from `pylogkit` (issue #44). To publish, reserve it on PyPI and then
-add a publish job that uses
-[trusted publishing](https://docs.pypi.org/trusted-publishers/) with the `id-token: write`
-permission, so that no API token is stored in the repository.
+Publishing uses [trusted publishing](https://docs.pypi.org/trusted-publishers/), so no API token is
+stored in the repository. Set it up once, before the first release:
+
+1. On pypi.org, go to *Your projects* then *Publishing* and add a pending publisher for the project
+   name `ctxlogkit`. A pending publisher reserves the name and creates the project on the first upload.
+2. Use owner `markbac`, repository `py-logkit`, workflow `release.yml` and environment `pypi`.
+3. In the repository settings, create an environment called `pypi`. Adding a required reviewer there
+   makes each publish wait for an approval.
+
+The name `ctxlogkit` was checked and was free when the project was renamed from `pylogkit` (issue #44).
