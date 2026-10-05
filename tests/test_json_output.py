@@ -5,7 +5,7 @@ from datetime import datetime
 
 import pytest
 
-from pylogkit import log_setup, set_log_context, setup_logging
+from ctxlogkit import log_setup, set_log_context, setup_logging
 
 pytestmark = pytest.mark.json_logger
 

@@ -6,6 +6,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## Unreleased
 
+### Changed
+
+- **Breaking:** the project is renamed from `pylogkit` to `ctxlogkit`, for both the distribution
+  and the import package. The old name on PyPI belongs to an unrelated project. Replace
+  `from pylogkit import ...` with `from ctxlogkit import ...` (#44).
+
 ### Added
 
 - `setup_logging()` accepts `syslog_address` (a `(host, port)` tuple or a Unix

@@ -2,7 +2,7 @@
 
 from logging.handlers import RotatingFileHandler, TimedRotatingFileHandler
 
-from pylogkit import setup_logging
+from ctxlogkit import setup_logging
 
 
 def test_size_rotation_keeps_the_configured_number_of_backups(tmp_path):

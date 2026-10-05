@@ -2,8 +2,8 @@
 
 import logging
 
-from pylogkit import set_log_context, setup_logging
-from pylogkit.log_setup import (
+from ctxlogkit import set_log_context, setup_logging
+from ctxlogkit.log_setup import (
     FILE_FORMAT,
     SmartFieldFormatter,
     _build_console_formatter,

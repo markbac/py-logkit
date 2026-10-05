@@ -4,7 +4,7 @@ from importlib.util import find_spec
 
 import pytest
 
-from pylogkit import clear_log_context
+from ctxlogkit import clear_log_context
 
 _HAS_JSON_LOGGER = find_spec("pythonjsonlogger") is not None
 _HAS_TQDM = find_spec("tqdm") is not None

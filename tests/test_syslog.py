@@ -5,7 +5,7 @@ from logging.handlers import SysLogHandler
 
 import pytest
 
-from pylogkit import set_log_context, setup_logging, setup_syslog_logger
+from ctxlogkit import set_log_context, setup_logging, setup_syslog_logger
 
 
 @pytest.fixture

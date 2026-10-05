@@ -79,13 +79,13 @@ jobs:
       - run: python -m build
       - run: twine check dist/*
       - name: Check the wheel ships the py.typed marker
-        run: unzip -l dist/*.whl | grep -q "pylogkit/py.typed"
+        run: unzip -l dist/*.whl | grep -q "ctxlogkit/py.typed"
       - name: Install the wheel into a clean environment and import it
         run: |
           python -m venv "$RUNNER_TEMP/wheel-venv"
           "$RUNNER_TEMP/wheel-venv/bin/pip" install dist/*.whl
           cd "$RUNNER_TEMP"
-          "$RUNNER_TEMP/wheel-venv/bin/python" -c "import pylogkit; print(pylogkit.__all__)"
+          "$RUNNER_TEMP/wheel-venv/bin/python" -c "import ctxlogkit; print(ctxlogkit.__all__)"
       - uses: actions/upload-artifact@v4
         with:
           name: dist

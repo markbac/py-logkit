@@ -1,21 +1,21 @@
 # Architecture
 
-This document explains how `pylogkit` is put together and why. It is written for contributors and for
+This document explains how `ctxlogkit` is put together and why. It is written for contributors and for
 users who want to know exactly what happens between a logging call and the bytes on disk. For usage,
 see the [README](../README.md).
 
 ## Overview
 
-`pylogkit` is a thin layer over the standard library's `logging` package. It does not replace
+`ctxlogkit` is a thin layer over the standard library's `logging` package. It does not replace
 loggers, levels or handlers. It configures them consistently and adds three things: context fields on
 every record, a stable set of output formats, and a few opt-in behaviours (queueing, redaction and
 environment configuration).
 
-The whole implementation is one module, `pylogkit/log_setup.py`, re-exported from the package root.
+The whole implementation is one module, `ctxlogkit/log_setup.py`, re-exported from the package root.
 
 ```mermaid
 flowchart TB
-    subgraph pkg["pylogkit package"]
+    subgraph pkg["ctxlogkit package"]
         init["__init__.py<br/>public API"]
         ver["_version.py<br/>single-sourced version"]
         core["log_setup.py<br/>implementation"]
@@ -32,7 +32,7 @@ flowchart TB
 
 ## Public API
 
-Everything in `pylogkit.__all__` is public. The rest of `log_setup.py` is private, marked by a leading
+Everything in `ctxlogkit.__all__` is public. The rest of `log_setup.py` is private, marked by a leading
 underscore.
 
 | Area | Names |
@@ -171,7 +171,7 @@ handler. Standard `LogRecord` attributes are never masked. Tracebacks are not se
 ## Optional dependencies
 
 `colorlog` is required. `python-json-logger` and `tqdm` are optional extras, imported inside
-`try`/`except ImportError` blocks so that importing `pylogkit` never fails because of them. Asking for
+`try`/`except ImportError` blocks so that importing `ctxlogkit` never fails because of them. Asking for
 JSON output without the library raises an `ImportError` that names the install command.
 
 `python-json-logger` changed between versions, and `_build_json_formatter()` hides the differences.
@@ -192,7 +192,7 @@ CI runs the tests against the latest release, against 2.0.7, and with neither ex
 - `from __future__ import annotations` keeps annotations lazy so the code runs on Python 3.10 and later.
   `LoggerAdapter` is only subscriptable at runtime from Python 3.11, so a type-checking-only alias
   is used as the adapter's base class.
-- The version is defined once, in `pylogkit/_version.py`, and `pyproject.toml` reads it without
+- The version is defined once, in `ctxlogkit/_version.py`, and `pyproject.toml` reads it without
   importing the package. See [releasing](releasing.md).
 
 ## Testing

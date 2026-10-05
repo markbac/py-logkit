@@ -2,8 +2,8 @@
 
 import logging
 
-from pylogkit import setup_logging
-from pylogkit.log_setup import ContextFilter
+from ctxlogkit import setup_logging
+from ctxlogkit.log_setup import ContextFilter
 
 
 def _context_filters(obj):

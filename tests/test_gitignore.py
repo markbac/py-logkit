@@ -17,10 +17,10 @@ pytestmark = pytest.mark.skipif(
 @pytest.mark.parametrize(
     "path",
     [
-        "pylogkit/__pycache__/log_setup.cpython-313.pyc",
-        "dist/pylogkit-0.1.0-py3-none-any.whl",
-        "build/lib/pylogkit/__init__.py",
-        "pylogkit.egg-info/PKG-INFO",
+        "ctxlogkit/__pycache__/log_setup.cpython-313.pyc",
+        "dist/ctxlogkit-0.1.0-py3-none-any.whl",
+        "build/lib/ctxlogkit/__init__.py",
+        "ctxlogkit.egg-info/PKG-INFO",
         ".venv/bin/python",
         ".pytest_cache/README.md",
         ".mypy_cache/CACHEDIR.TAG",
@@ -37,7 +37,7 @@ def test_generated_files_are_ignored(path):
     assert result.returncode == 0, f"{path} is not ignored"
 
 
-@pytest.mark.parametrize("path", ["pylogkit/log_setup.py", "tests/test_gitignore.py", "README.md"])
+@pytest.mark.parametrize("path", ["ctxlogkit/log_setup.py", "tests/test_gitignore.py", "README.md"])
 def test_source_files_are_not_ignored(path):
     """The patterns must not hide real source files."""
     result = subprocess.run(["git", "check-ignore", "-q", path], cwd=ROOT, check=False)

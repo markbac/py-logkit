@@ -7,7 +7,7 @@ import time
 
 import pytest
 
-from pylogkit import log_context, log_exception, log_setup, setup_logging, shutdown_logging
+from ctxlogkit import log_context, log_exception, log_setup, setup_logging, shutdown_logging
 
 
 @pytest.fixture(autouse=True)

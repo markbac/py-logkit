@@ -6,7 +6,7 @@ import logging
 
 import pytest
 
-from pylogkit import setup_logging
+from ctxlogkit import setup_logging
 
 
 @pytest.fixture(autouse=True)

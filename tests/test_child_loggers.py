@@ -5,7 +5,7 @@ import logging
 
 import pytest
 
-from pylogkit import set_log_context, setup_logging
+from ctxlogkit import set_log_context, setup_logging
 
 
 def test_child_logger_records_are_formatted(capsys):

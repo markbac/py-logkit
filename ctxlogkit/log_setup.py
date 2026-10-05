@@ -14,7 +14,7 @@ Dependencies:
 
 Example::
 
-    from pylogkit import ContextualLoggerAdapter, setup_logging
+    from ctxlogkit import ContextualLoggerAdapter, setup_logging
 
     logger = setup_logging(name=__name__, to_file=True, file_path="app.log", level="DEBUG")
     logger = ContextualLoggerAdapter(logger)
@@ -123,7 +123,7 @@ try:
 except ImportError:
     tqdm = None
 
-_log_context: ContextVar[dict[str, Any] | None] = ContextVar("pylogkit_log_context", default=None)
+_log_context: ContextVar[dict[str, Any] | None] = ContextVar("ctxlogkit_log_context", default=None)
 
 
 def set_log_context(**kwargs: Any) -> None:

@@ -5,7 +5,7 @@ import logging
 
 import pytest
 
-from pylogkit import (
+from ctxlogkit import (
     DEFAULT_REDACT_KEYS,
     ContextualLoggerAdapter,
     RedactionFilter,

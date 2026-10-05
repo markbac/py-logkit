@@ -20,7 +20,7 @@ jobs:
           python-version: "3.12"
       - name: Check that the tag matches the package version
         run: |
-          version=$(python -c "import re, pathlib; print(re.search(r'__version__ = \"(.+?)\"', pathlib.Path('pylogkit/_version.py').read_text()).group(1))")
+          version=$(python -c "import re, pathlib; print(re.search(r'__version__ = \"(.+?)\"', pathlib.Path('ctxlogkit/_version.py').read_text()).group(1))")
           if [ "v$version" != "$GITHUB_REF_NAME" ]; then
             echo "Tag $GITHUB_REF_NAME does not match version $version" >&2
             exit 1
