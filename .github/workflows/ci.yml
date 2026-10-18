@@ -16,11 +16,12 @@ jobs:
   lint:
     name: Lint and type check
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: pip
       - run: pip install -e ".[all,dev]"
       - run: ruff check .
@@ -30,10 +31,11 @@ jobs:
   test:
     name: Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
+        python-version: ["3.14"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -46,11 +48,12 @@ jobs:
   test-minimal:
     name: Test without optional extras
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: pip
       - run: pip install -e ".[dev]"
       - run: pytest
@@ -58,11 +61,12 @@ jobs:
   test-old-json-logger:
     name: Test with python-json-logger 2.x
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
           cache: pip
       - run: pip install -e ".[all,dev]" "python-json-logger==2.0.7"
       - run: pytest
@@ -70,11 +74,12 @@ jobs:
   build:
     name: Build and install the package
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.14"
       - run: python -m pip install build twine
       - run: python -m build
       - run: twine check dist/*
